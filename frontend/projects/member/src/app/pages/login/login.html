@@ -1,0 +1,29 @@
+<main class="login">
+  <form class="card" (ngSubmit)="submit()">
+    <h1>Roomy</h1>
+    <p class="subtitle">Sign in to book a room</p>
+
+    <label>
+      Organization
+      <input name="tenant" [(ngModel)]="tenant" required autocomplete="organization" />
+    </label>
+
+    <label>
+      Email
+      <input name="email" type="email" [(ngModel)]="email" required autocomplete="email" />
+    </label>
+
+    <label>
+      Password
+      <input name="password" type="password" [(ngModel)]="password" required autocomplete="current-password" />
+    </label>
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    <button type="submit" [disabled]="busy()">
+      {{ busy() ? 'Signing in…' : 'Sign in' }}
+    </button>
+  </form>
+</main>

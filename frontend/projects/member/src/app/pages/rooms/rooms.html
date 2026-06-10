@@ -1,0 +1,133 @@
+<header class="topbar">
+  <h1>Roomy</h1>
+  <div class="user">
+    <span>{{ auth.user()?.name }}</span>
+    <button type="button" (click)="logout()">Sign out</button>
+  </div>
+</header>
+
+<main class="content">
+  <section class="controls">
+    <label>
+      Location
+      <select (change)="onLocationChange($event)">
+        @for (location of locations(); track location.id) {
+          <option [value]="location.id" [selected]="location.id === selectedLocationId()">
+            {{ location.name }}
+          </option>
+        }
+      </select>
+    </label>
+    <p class="meta">
+      {{ today }}
+      @if (selectedLocation(); as location) {
+        · {{ location.timezone }}
+      }
+    </p>
+  </section>
+
+  @if (notice()) {
+    <p class="notice" role="status">{{ notice() }}</p>
+  }
+
+  @if (draft(); as d) {
+    <section class="book-panel">
+      <h2>Book {{ d.room.name }} · {{ d.slot.label }}</h2>
+      <form (ngSubmit)="submitDraft()">
+        <label>
+          Title
+          <input
+            name="title"
+            [ngModel]="d.title"
+            (ngModelChange)="draft.set({ ...d, title: $event })"
+            required
+            maxlength="200"
+            placeholder="What's the meeting?"
+          />
+        </label>
+        <label>
+          Duration
+          <select
+            name="duration"
+            [ngModel]="d.durationMinutes"
+            (ngModelChange)="draft.set({ ...d, durationMinutes: +$event })"
+          >
+            @for (minutes of durations; track minutes) {
+              <option [value]="minutes">{{ minutes }} min</option>
+            }
+          </select>
+        </label>
+        <div class="actions">
+          <button type="submit" [disabled]="saving() || !d.title.trim()">
+            {{ saving() ? 'Booking…' : 'Book' }}
+          </button>
+          <button type="button" class="secondary" (click)="closeDraft()">Cancel</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  } @else if (loading()) {
+    <p class="meta">Loading…</p>
+  } @else if (rooms().length === 0) {
+    <p class="meta">No rooms at this location yet.</p>
+  } @else {
+    <div class="grid-scroll">
+      <table class="availability">
+        <thead>
+          <tr>
+            <th class="room-col">Room</th>
+            @for (slot of slots; track slot.label) {
+              <th class="slot-col" [class.hour-start]="slot.minute === 0">
+                {{ slot.minute === 0 ? slot.label : '' }}
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (room of rooms(); track room.id) {
+            <tr>
+              <td class="room-col">
+                <div class="room-name">{{ room.name }}</div>
+                <div class="room-meta">
+                  {{ room.capacity }} {{ room.capacity === 1 ? 'seat' : 'seats' }}
+                  @if (room.floor) {
+                    · floor {{ room.floor }}
+                  }
+                  @if (room.requiresApproval) {
+                    <span class="badge">approval</span>
+                  }
+                </div>
+              </td>
+              @for (slot of slots; track slot.label) {
+                @if (bookingAt(room.id, slot); as booking) {
+                  <td
+                    class="slot busy"
+                    [class.mine]="booking.isMine"
+                    [class.hour-start]="slot.minute === 0"
+                    [title]="booking.title + ' — ' + booking.organizerName + (booking.isMine ? ' (click to cancel)' : '')"
+                    (click)="cancelBooking(booking)"
+                  ></td>
+                } @else {
+                  <td
+                    class="slot free"
+                    [class.hour-start]="slot.minute === 0"
+                    [title]="room.name + ' · ' + slot.label + ' — book this slot'"
+                    (click)="openDraft(room, slot)"
+                  ></td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="legend">
+      <span class="chip free"></span> Free
+      <span class="chip busy"></span> Booked
+      <span class="chip mine"></span> Yours (click to cancel)
+    </p>
+  }
+</main>

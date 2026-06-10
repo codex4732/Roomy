@@ -1,0 +1,270 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f4f5f7;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1.5rem;
+  background: #1f6f5c;
+  color: #fff;
+
+  h1 {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+
+  .user {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+
+    button {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      color: #fff;
+      border-radius: 6px;
+      padding: 0.35rem 0.8rem;
+      cursor: pointer;
+    }
+  }
+}
+
+.content {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.controls {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.9rem;
+    color: #334;
+  }
+
+  select {
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #ccd;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #fff;
+    min-width: 220px;
+  }
+}
+
+.meta {
+  color: #667;
+  margin: 0;
+}
+
+.notice {
+  background: #e8f0fe;
+  color: #1a4480;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.book-panel {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0 0 0.8rem;
+    font-size: 1.05rem;
+    color: #223;
+  }
+
+  form {
+    display: flex;
+    align-items: end;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.9rem;
+    color: #334;
+  }
+
+  input,
+  select {
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #ccd;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+
+  input {
+    min-width: 260px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  button {
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 8px;
+    background: #1f6f5c;
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    &.secondary {
+      background: #eef0f2;
+      color: #334;
+    }
+  }
+}
+
+.error {
+  color: #b3261e;
+}
+
+.grid-scroll {
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.availability {
+  border-collapse: collapse;
+  width: 100%;
+
+  th,
+  td {
+    border-top: 1px solid #eef0f2;
+  }
+
+  .room-col {
+    text-align: left;
+    padding: 0.6rem 0.9rem;
+    min-width: 180px;
+    position: sticky;
+    left: 0;
+    background: #fff;
+  }
+
+  thead th {
+    font-size: 0.75rem;
+    color: #667;
+    font-weight: 600;
+    padding-bottom: 0.4rem;
+    padding-top: 0.6rem;
+    text-align: left;
+  }
+
+  .slot-col {
+    min-width: 28px;
+  }
+
+  .slot {
+    height: 34px;
+    border-left: 1px solid #f3f4f6;
+
+    &.hour-start {
+      border-left: 1px solid #dfe3e8;
+    }
+
+    &.free {
+      background: #e8f5ef;
+      cursor: pointer;
+
+      &:hover {
+        background: #cdeadd;
+      }
+    }
+
+    &.busy {
+      background: #f3d8d6;
+      cursor: default;
+    }
+
+    &.mine {
+      background: #cfe3f7;
+      cursor: pointer;
+
+      &:hover {
+        background: #b7d4f0;
+      }
+    }
+  }
+
+  .room-name {
+    font-weight: 600;
+    color: #223;
+  }
+
+  .room-meta {
+    font-size: 0.78rem;
+    color: #667;
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .badge {
+    background: #fff4d6;
+    color: #8a6d00;
+    border-radius: 999px;
+    padding: 0.05rem 0.5rem;
+    font-size: 0.7rem;
+  }
+}
+
+.legend {
+  margin-top: 0.8rem;
+  color: #667;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  .chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+
+    &.free {
+      background: #e8f5ef;
+      border: 1px solid #cdeadd;
+    }
+
+    &.busy {
+      background: #f3d8d6;
+      border: 1px solid #e8c2bf;
+    }
+
+    &.mine {
+      background: #cfe3f7;
+      border: 1px solid #b7d4f0;
+    }
+  }
+}
