@@ -161,7 +161,7 @@ Representative stories; the FR sections above are the complete requirement set.
 - Exactly one booking succeeds. The other user immediately sees a conflict message with at least one alternative suggestion. No partial/phantom booking exists afterward.
 
 **US-3 — Ghost booking reclaimed (G3)**
-*A Member books 09:00–10:00 but never shows. Grace period is 10 min.*
+*A Member books 09:00–10:00 but never shows. The tenant uses the default 10-min grace period (tenant-configurable, FR-6.1).*
 - At 09:10 the booking becomes `AutoReleased`, the kiosk turns green within 5 s, a no-show is recorded, and the organizer gets a notification. Another Member can immediately book 09:15–10:00.
 
 **US-4 — Approval flow (G4)**
