@@ -33,7 +33,7 @@ type BoardState = 'free' | 'busy' | 'soon';
       <main class="board" [class]="state()">
         <header>
           <span class="room-name">{{ room()!.name }}</span>
-          <span class="clock">{{ clock() }}</span>
+          <span class="when"><span class="date">{{ dateLabel() }}</span><span class="clock">{{ clock() }}</span></span>
         </header>
         <section class="status">
           @if (state() === 'free') {
@@ -81,8 +81,11 @@ type BoardState = 'free' | 'busy' | 'soon';
       &.soon { background: linear-gradient(135deg, #9a7300, #c79b15); }
 
       header {
-        display: flex; justify-content: space-between; padding: 1.5rem 2rem;
+        display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem;
         font-size: 1.6rem; font-weight: 700; opacity: 0.95;
+
+        .when { display: flex; flex-direction: column; align-items: flex-end; }
+        .date { font-size: 1rem; font-weight: 600; opacity: 0.85; }
       }
 
       .status {
@@ -112,6 +115,7 @@ export class Board {
   protected readonly location = signal<LocationDto | null>(null);
   protected readonly bookings = signal<BookingDto[]>([]);
   protected readonly clock = signal('');
+  protected readonly dateLabel = signal('');
   private readonly now = signal(Date.now());
 
   protected readonly current = computed(() =>
@@ -136,10 +140,18 @@ export class Board {
     void this.loadRooms();
     setInterval(() => {
       this.now.set(Date.now());
-      this.clock.set(new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }));
+      this.updateClock();
       void this.refresh();
     }, 15_000);
-    this.clock.set(new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }));
+    this.updateClock();
+  }
+
+  private updateClock(): void {
+    const now = new Date();
+    this.clock.set(now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }));
+    this.dateLabel.set(now.toLocaleDateString(undefined, {
+      weekday: 'long', day: 'numeric', month: 'long',
+    }));
   }
 
   protected roomsOf(locationId: string): RoomDto[] {

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Quartz;
+using Roomy.Api.Blackouts;
 using Roomy.Api.Bookings;
 using Roomy.Api.Common.Persistence;
 using Roomy.Api.Common.Tenancy;
@@ -96,6 +97,7 @@ app.MapGroup("/api/v1")
     .MapLocationEndpoints()
     .MapBookingEndpoints()
     .MapUserEndpoints()
+    .MapBlackoutEndpoints()
     .MapGet("/ping", () => Results.Ok(new { status = "ok" }));
 
 if (app.Environment.IsDevelopment())

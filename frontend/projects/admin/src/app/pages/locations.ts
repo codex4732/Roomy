@@ -29,10 +29,21 @@ interface RoomDto {
     @for (location of locations(); track location.id) {
       <div class="card">
         <div class="loc-head">
-          <div>
-            <h3>{{ location.name }}</h3>
-            <p class="meta">{{ location.timezone }} @if (location.address) { · {{ location.address }} }</p>
-          </div>
+          @if (editing() === location.id) {
+            <form class="edit-form" (ngSubmit)="saveLocation(location)">
+              <input name="ename" [(ngModel)]="editName" placeholder="Name" required />
+              <input name="etz" [(ngModel)]="editTz" placeholder="IANA time zone" required />
+              <input name="eaddr" [(ngModel)]="editAddr" placeholder="Address" />
+              <button type="submit">Save</button>
+              <button type="button" class="ghost" (click)="editing.set(null)">Cancel</button>
+            </form>
+          } @else {
+            <div>
+              <h3>{{ location.name }}</h3>
+              <p class="meta">{{ location.timezone }} @if (location.address) { · {{ location.address }} }</p>
+            </div>
+            <button type="button" class="ghost" (click)="startEdit(location)">Edit</button>
+          }
         </div>
         <table>
           <thead>
@@ -82,6 +93,9 @@ interface RoomDto {
     button { padding: 0.5rem 1rem; border: none; border-radius: 8px; background: #2a5285; color: #fff; cursor: pointer; }
     button:disabled { opacity: 0.5; }
     label { font-size: 0.85rem; color: #44546a; }
+    .loc-head { display: flex; justify-content: space-between; align-items: start; gap: 0.6rem; }
+    .edit-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    button.ghost { background: #eef1f5; color: #36465a; }
   `,
 })
 export class Locations {
@@ -91,6 +105,8 @@ export class Locations {
   protected readonly notice = signal<string | null>(null);
 
   locName = ''; locTz = ''; locAddr = '';
+  editName = ''; editTz = ''; editAddr = '';
+  protected readonly editing = signal<string | null>(null);
   roomName = ''; roomCapacity = 4; roomFloor = ''; roomApproval = false;
 
   constructor() {
@@ -124,6 +140,25 @@ export class Locations {
       await this.refresh();
     } catch (e: unknown) {
       this.notice.set(e instanceof HttpErrorResponse ? (e.error?.detail ?? 'Failed.') : 'Failed.');
+    }
+  }
+
+  protected startEdit(location: LocationDto): void {
+    this.editing.set(location.id);
+    this.editName = location.name;
+    this.editTz = location.timezone;
+    this.editAddr = location.address ?? '';
+  }
+
+  protected async saveLocation(location: LocationDto): Promise<void> {
+    try {
+      await firstValueFrom(this.http.patch(`/api/v1/locations/${location.id}`,
+        { name: this.editName, timezone: this.editTz, address: this.editAddr || null }));
+      this.editing.set(null);
+      this.notice.set(`Updated "${this.editName}".`);
+      await this.refresh();
+    } catch (e: unknown) {
+      this.notice.set(e instanceof HttpErrorResponse ? (e.error?.detail ?? 'Update failed.') : 'Update failed.');
     }
   }
 

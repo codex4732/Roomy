@@ -12,6 +12,9 @@ import { AuthService } from '../core/auth.service';
         <a routerLink="/approvals" routerLinkActive="active">Approvals</a>
         <a routerLink="/locations" routerLinkActive="active">Locations</a>
         <a routerLink="/users" routerLinkActive="active">Users</a>
+        <a routerLink="/bookings" routerLinkActive="active">Bookings</a>
+        <a routerLink="/blackouts" routerLinkActive="active">Blackouts</a>
+        <a routerLink="/settings" routerLinkActive="active">Settings</a>
       </nav>
       <div class="user">
         <span>{{ auth.user()?.name }}</span>

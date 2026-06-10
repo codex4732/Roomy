@@ -16,6 +16,7 @@ public static class BookingEndpoints
         var bookings = group.MapGroup("/bookings").RequireAuthorization();
 
         bookings.MapGet("/", ListAsync);
+        bookings.MapGet("/mine", ListMineAsync);
         bookings.MapPost("/", CreateAsync);
         bookings.MapPost("/series", CreateSeriesAsync);
         bookings.MapPost("/series/{id:guid}/cancel", CancelSeriesAsync);
@@ -29,6 +30,7 @@ public static class BookingEndpoints
         approvals.MapPost("/{id:guid}/decline", (Guid id, DeclineRequest req, RoomyDbContext db) => DecideAsync(id, false, req.Reason, db));
 
         group.MapGet("/settings", GetSettingsAsync).RequireAuthorization();
+        group.MapPut("/settings", UpdateSettingsAsync).RequireAuthorization("TenantAdmin");
         return group;
     }
 
@@ -53,6 +55,43 @@ public static class BookingEndpoints
     private static async Task<IResult> GetSettingsAsync(RoomyDbContext db, ITenantContext tenant)
         => Results.Ok((await db.Tenants.FirstAsync(t => t.Id == tenant.TenantId)).Settings);
 
+    public sealed record MineDto(
+        Guid Id, Guid RoomId, string RoomName, string LocationName, string Title,
+        DateTimeOffset StartAt, DateTimeOffset EndAt, string Status, Guid? SeriesId,
+        bool CheckinRequired, string? SetupNotes, List<string> Participants);
+
+    private static async Task<IResult> ListMineAsync(RoomyDbContext db, ClaimsPrincipal principal)
+    {
+        var userId = GetUserId(principal);
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-24);
+        return Results.Ok(await db.Bookings
+            .Where(b => b.OrganizerId == userId && b.EndAt > cutoff)
+            .OrderBy(b => b.StartAt)
+            .Take(200)
+            .Select(b => new MineDto(b.Id, b.RoomId, b.Room!.Name, b.Room!.Location!.Name, b.Title,
+                b.StartAt, b.EndAt, b.Status.ToString(), b.SeriesId, b.Room!.CheckinRequired,
+                b.SetupNotes, b.Participants))
+            .ToListAsync());
+    }
+
+    private static async Task<IResult> UpdateSettingsAsync(
+        Tenants.TenantSettings request, RoomyDbContext db, ITenantContext tenant)
+    {
+        if (request.BookingWindowDays is < 1 or > 365
+            || request.MaxDurationMinutes is < 15 or > 44640
+            || request.MinDurationMinutes < 5 || request.MinDurationMinutes > request.MaxDurationMinutes
+            || request.MaxActiveBookingsPerUser is < 1 or > 100
+            || request.CheckinGraceMinutes is < 5 or > 30
+            || request.ApprovalExpiryHours is < 1 or > 168)
+        {
+            return Problem("One or more policy values are out of range.");
+        }
+        var row = await db.Tenants.FirstAsync(t => t.Id == tenant.TenantId);
+        row.Settings = request;
+        await db.SaveChangesAsync();
+        return Results.Ok(row.Settings);
+    }
+
     private static async Task<IResult> ListAsync(
         Guid locationId, DateTimeOffset from, DateTimeOffset to, RoomyDbContext db, ClaimsPrincipal principal)
     {
@@ -76,6 +115,12 @@ public static class BookingEndpoints
         if (prepared.Error is not null)
         {
             return prepared.Error;
+        }
+
+        if (await Blackouts.BlackoutEndpoints.IsBlackedOutAsync(
+            db, prepared.Room!.Id, prepared.Room!.LocationId, prepared.Start, prepared.End))
+        {
+            return Problem("The room is blocked by a blackout period during that time.");
         }
 
         var booking = NewBooking(prepared, request.AttendeeCount);
@@ -129,6 +174,12 @@ public static class BookingEndpoints
         await db.SaveChangesAsync();
         foreach (var (start, end) in occurrences)
         {
+            if (await Blackouts.BlackoutEndpoints.IsBlackedOutAsync(
+                db, prepared.Room!.Id, prepared.Room!.LocationId, start, end))
+            {
+                skipped.Add(start);
+                continue;
+            }
             var booking = NewBooking(prepared with { Start = start, End = end }, null);
             booking.SeriesId = series.Id;
             db.Bookings.Add(booking);

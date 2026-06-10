@@ -19,6 +19,7 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Bookings.Booking> Bookings => Set<Bookings.Booking>();
     public DbSet<Bookings.BookingSeries> BookingSeries => Set<Bookings.BookingSeries>();
+    public DbSet<Blackouts.BlackoutPeriod> Blackouts => Set<Blackouts.BlackoutPeriod>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +69,12 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
             booking.Property(b => b.SetupNotes).HasMaxLength(1000);
             booking.HasOne(b => b.Room).WithMany().HasForeignKey(b => b.RoomId);
             booking.HasOne(b => b.Organizer).WithMany().HasForeignKey(b => b.OrganizerId);
+        });
+
+        modelBuilder.Entity<Blackouts.BlackoutPeriod>(blackout =>
+        {
+            blackout.HasIndex(b => new { b.TenantId, b.LocationId, b.StartAt });
+            blackout.Property(b => b.Reason).HasMaxLength(300);
         });
 
         modelBuilder.Entity<Room>(room =>

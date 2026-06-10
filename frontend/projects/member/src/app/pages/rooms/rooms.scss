@@ -744,3 +744,135 @@
   font-size: 0.85rem;
   margin: 0 0 0.6rem;
 }
+
+/* ---------- toolbar / week view ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+
+  .date-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+
+    button {
+      width: 34px;
+      height: 34px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: #475569;
+
+      &:hover { background: #eef2ff; }
+
+      &.today {
+        width: auto;
+        padding: 0 0.8rem;
+        font-size: 0.85rem;
+        color: #4f46e5;
+        font-weight: 600;
+      }
+    }
+
+    input[type='date'] {
+      padding: 0.45rem 0.6rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 0.9rem;
+    }
+  }
+
+  .mode {
+    display: flex;
+    background: #e8ecf3;
+    border-radius: 10px;
+    padding: 3px;
+
+    button {
+      border: none;
+      background: transparent;
+      padding: 0.4rem 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+
+      &.on {
+        background: #fff;
+        color: #1e293b;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+      }
+    }
+  }
+
+  .search {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 0.9rem;
+    min-width: 180px;
+  }
+
+  select {
+    padding: 0.5rem 0.7rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 0.9rem;
+  }
+}
+
+.timeline.week {
+  .day-head {
+    font-size: 0.8rem;
+    color: #475569;
+    font-weight: 700;
+    text-align: center;
+    padding: 0.7rem 0.4rem 0.5rem;
+    cursor: pointer;
+    border-radius: 8px;
+
+    &:hover { background: #eef2ff; }
+    &.today { color: #4f46e5; }
+  }
+
+  .day-cell {
+    text-align: center;
+    height: 56px;
+    border-left: 1px solid #f1f5f9;
+    cursor: pointer;
+
+    &:hover { background: #eef2ff; }
+  }
+
+  .day-chip {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+
+    &.free-chip { background: #ecfdf5; color: #047857; }
+    &.busy-chip { background: #eef2ff; color: #4338ca; }
+  }
+}
+
+.block.closed {
+  background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 7px, #f1f5f9 7px, #f1f5f9 14px);
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.legend .chip.k-closed {
+  background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 4px, #f1f5f9 4px, #f1f5f9 8px);
+  border: 1px solid #cbd5e1;
+}

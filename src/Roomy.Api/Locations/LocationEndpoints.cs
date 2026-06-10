@@ -13,6 +13,7 @@ public static class LocationEndpoints
         locations.MapGet("/", ListLocationsAsync);
         locations.MapGet("/{id:guid}/rooms", ListRoomsAsync);
         locations.MapPost("/", CreateLocationAsync).RequireAuthorization("TenantAdmin");
+        locations.MapPatch("/{id:guid}", UpdateLocationAsync).RequireAuthorization("TenantAdmin");
         locations.MapPost("/{id:guid}/rooms", CreateRoomAsync).RequireAuthorization("Staff");
 
         var rooms = group.MapGroup("/rooms").RequireAuthorization("Staff");
@@ -22,6 +23,7 @@ public static class LocationEndpoints
     }
 
     public sealed record CreateLocationRequest(string Name, string Timezone, string? Address);
+    public sealed record UpdateLocationRequest(string? Name, string? Timezone, string? Address);
     public sealed record CreateRoomRequest(
         string Name, int Capacity, string? Floor, bool RequiresApproval, bool CheckinRequired);
     public sealed record UpdateRoomRequest(
@@ -77,6 +79,39 @@ public static class LocationEndpoints
         await db.SaveChangesAsync();
         return Results.Created($"/api/v1/locations/{location.Id}",
             new LocationDto(location.Id, location.Name, location.Timezone, location.Address));
+    }
+
+    private static async Task<IResult> UpdateLocationAsync(
+        Guid id, UpdateLocationRequest request, RoomyDbContext db)
+    {
+        var location = await db.Locations.FirstOrDefaultAsync(l => l.Id == id);
+        if (location is null)
+        {
+            return Results.NotFound();
+        }
+        if (request.Timezone is not null)
+        {
+            try
+            {
+                _ = NodaTime.DateTimeZoneProviders.Tzdb[request.Timezone];
+            }
+            catch (NodaTime.TimeZones.DateTimeZoneNotFoundException)
+            {
+                return Problem($"'{request.Timezone}' is not a valid IANA time zone.");
+            }
+            location.Timezone = request.Timezone;
+        }
+        if (request.Name is not null)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Problem("A location name is required.");
+            }
+            location.Name = request.Name.Trim();
+        }
+        location.Address = request.Address ?? location.Address;
+        await db.SaveChangesAsync();
+        return Results.Ok(new LocationDto(location.Id, location.Name, location.Timezone, location.Address));
     }
 
     private static async Task<IResult> CreateRoomAsync(Guid id, CreateRoomRequest request, RoomyDbContext db)

@@ -7,7 +7,7 @@
       </button>
       <button type="button" [class.active]="view() === 'mine'" (click)="view.set('mine')">
         <span class="icon">★</span> My bookings
-        @if (myBookings().length) { <span class="count">{{ myBookings().length }}</span> }
+        @if (myUpcoming().length) { <span class="count">{{ myUpcoming().length }}</span> }
       </button>
     </nav>
     <div class="sidebar-foot">
@@ -26,7 +26,7 @@
     <header class="head">
       <div>
         <h1>{{ greeting() }}</h1>
-        <p class="sub">{{ today }}
+        <p class="sub">{{ selectedDateLabel() }}
           @if (selectedLocation(); as location) { · {{ location.timezone }} }
         </p>
       </div>
@@ -45,8 +45,8 @@
         <span class="stat-label">rooms free right now</span>
       </div>
       <div class="stat">
-        <span class="stat-num indigo">{{ myBookings().length }}</span>
-        <span class="stat-label">your bookings today</span>
+        <span class="stat-num indigo">{{ myUpcoming().length }}</span>
+        <span class="stat-label">upcoming bookings</span>
       </div>
       <div class="stat">
         <span class="stat-num amber">{{ myPendingCount() }}</span>
@@ -63,20 +63,23 @@
 
     @if (view() === 'mine') {
       <section class="mine">
-        @if (myBookings().length === 0) {
+        @if (myUpcoming().length === 0) {
           <div class="empty">
-            <p>No bookings today.</p>
+            <p>No upcoming bookings.</p>
             <button type="button" (click)="view.set('grid')">Find a room</button>
           </div>
         }
-        @for (booking of myBookings(); track booking.id) {
+        @for (booking of myUpcoming(); track booking.id) {
           <article class="mine-card" [class.dim]="booking.status === 'Completed'">
-            <div class="tile" [style.background]="tile({ name: roomName(booking.roomId) })">
-              {{ roomName(booking.roomId).charAt(0) }}
+            <div class="tile" [style.background]="tile({ name: booking.roomName })">
+              {{ booking.roomName.charAt(0) }}
             </div>
             <div class="mine-info">
               <h3>{{ booking.title }}</h3>
-              <p>{{ roomName(booking.roomId) }} · {{ fmt(booking.startAt) }}–{{ fmt(booking.endAt) }}</p>
+              <p>
+                {{ fmtDate(booking.startAt) }} · {{ fmt(booking.startAt) }}–{{ fmt(booking.endAt) }}
+                · {{ booking.roomName }} ({{ booking.locationName }})
+              </p>
             </div>
             <span class="status-chip" [attr.data-status]="booking.status">{{ statusLabel(booking.status) }}</span>
             <div class="mine-actions">
@@ -96,75 +99,145 @@
           </article>
         }
       </section>
-    } @else if (loading()) {
-      <p class="sub">Loading…</p>
-    } @else if (rooms().length === 0) {
-      <p class="sub">No rooms at this location yet.</p>
     } @else {
-      <section class="board">
-        <table class="timeline">
-          <thead>
-            <tr>
-              <th class="room-col"></th>
-              @for (slot of slots; track slot.label) {
-                <th class="slot-head" [class.hour]="slot.minute === 0" [class.now]="slot.label === nowSlotLabel()">
-                  @if (slot.minute === 0) { {{ slot.label }} }
-                  @if (slot.label === nowSlotLabel()) { <span class="now-dot"></span> }
-                </th>
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (room of rooms(); track room.id) {
+      <section class="toolbar">
+        <div class="date-nav">
+          <button type="button" (click)="shiftDate(-1)" aria-label="Previous day">‹</button>
+          <input type="date" [ngModel]="selectedDate()" (ngModelChange)="setDate($event)" />
+          <button type="button" (click)="shiftDate(1)" aria-label="Next day">›</button>
+          @if (selectedDate() !== todayString()) {
+            <button type="button" class="today" (click)="setDate(todayString())">Today</button>
+          }
+        </div>
+        <div class="mode">
+          <button type="button" [class.on]="gridMode() === 'day'" (click)="gridMode.set('day')">Day</button>
+          <button type="button" [class.on]="gridMode() === 'week'" (click)="gridMode.set('week')">Week</button>
+        </div>
+        <input class="search" type="search" placeholder="Search rooms…"
+          [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        <select [ngModel]="minCapacity()" (ngModelChange)="minCapacity.set(+$event)">
+          @for (c of capacityOptions; track c) {
+            <option [value]="c">{{ c === 0 ? 'Any size' : c + '+ seats' }}</option>
+          }
+        </select>
+      </section>
+
+      @if (loading()) {
+        <p class="sub">Loading…</p>
+      } @else if (filteredRooms().length === 0) {
+        <p class="sub">No rooms match.</p>
+      } @else if (gridMode() === 'week') {
+        <section class="board">
+          <table class="timeline week">
+            <thead>
               <tr>
-                <td class="room-col">
-                  <div class="room-card">
-                    <div class="tile" [style.background]="tile(room)">{{ room.name.charAt(0) }}</div>
-                    <div>
-                      <div class="room-name">{{ room.name }}</div>
-                      <div class="room-meta">
-                        ⊹ {{ room.capacity }}
-                        @if (room.floor) { · fl {{ room.floor }} }
-                        @if (room.requiresApproval) { <span class="badge">approval</span> }
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                @for (cell of cellsFor(room); track cell.slot.label) {
-                  @if (cell.kind === 'free') {
-                    <td class="cell free" [class.hour]="cell.slot.minute === 0"
-                      (click)="openDraft(room, cell.slot)">
-                      <span class="plus">+</span>
-                    </td>
-                  } @else {
-                    <td class="cell" [attr.colspan]="cell.span">
-                      <button type="button" class="block"
-                        [class.mine]="cell.booking.isMine"
-                        [class.others]="!cell.booking.isMine"
-                        [class.pending]="cell.booking.status === 'PendingApproval'"
-                        [class.live]="cell.booking.status === 'CheckedIn'"
-                        [title]="cell.booking.title + ' — ' + cell.booking.organizerName + ' (' + statusLabel(cell.booking.status) + ')'"
-                        (click)="openBooking(cell.booking)">
-                        <span class="block-title">{{ cell.booking.isMine ? cell.booking.title : cell.booking.organizerName }}</span>
-                        @if (cell.span > 2) {
-                          <span class="block-time">{{ fmt(cell.booking.startAt) }}–{{ fmt(cell.booking.endAt) }}</span>
-                        }
-                      </button>
-                    </td>
-                  }
+                <th class="room-col"></th>
+                @for (date of weekDates(); track date) {
+                  <th class="day-head" [class.today]="date === todayString()"
+                    (click)="openDay(date)">{{ dayLabel(date) }}</th>
                 }
               </tr>
-            }
-          </tbody>
-        </table>
-      </section>
-      <p class="legend">
-        <span class="chip k-free"></span> Free
-        <span class="chip k-others"></span> Booked
-        <span class="chip k-mine"></span> Yours
-        <span class="chip k-pending"></span> Tentative
-        <span class="chip k-live"></span> In progress
-      </p>
+            </thead>
+            <tbody>
+              @for (room of filteredRooms(); track room.id) {
+                <tr>
+                  <td class="room-col">
+                    <div class="room-card">
+                      <div class="tile" [style.background]="tile(room)">{{ room.name.charAt(0) }}</div>
+                      <div>
+                        <div class="room-name">{{ room.name }}</div>
+                        <div class="room-meta">⊹ {{ room.capacity }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  @for (date of weekDates(); track date) {
+                    <td class="day-cell" (click)="openDay(date)">
+                      @if (weekCount(room.id, date); as n) {
+                        <span class="day-chip busy-chip">{{ n }} booking{{ n === 1 ? '' : 's' }}</span>
+                      } @else {
+                        <span class="day-chip free-chip">free</span>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+        <p class="legend">Click a day to open it in the day view.</p>
+      } @else {
+        <section class="board">
+          <table class="timeline">
+            <thead>
+              <tr>
+                <th class="room-col"></th>
+                @for (slot of slots; track slot.label) {
+                  <th class="slot-head" [class.hour]="slot.minute === 0" [class.now]="slot.label === nowSlotLabel()">
+                    @if (slot.minute === 0) { {{ slot.label }} }
+                    @if (slot.label === nowSlotLabel()) { <span class="now-dot"></span> }
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (room of filteredRooms(); track room.id) {
+                <tr>
+                  <td class="room-col">
+                    <div class="room-card">
+                      <div class="tile" [style.background]="tile(room)">{{ room.name.charAt(0) }}</div>
+                      <div>
+                        <div class="room-name">{{ room.name }}</div>
+                        <div class="room-meta">
+                          ⊹ {{ room.capacity }}
+                          @if (room.floor) { · fl {{ room.floor }} }
+                          @if (room.requiresApproval) { <span class="badge">approval</span> }
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  @for (cell of cellsFor(room); track cell.slot.label) {
+                    @if (cell.kind === 'free') {
+                      <td class="cell free" [class.hour]="cell.slot.minute === 0"
+                        (click)="openDraft(room, cell.slot)">
+                        <span class="plus">+</span>
+                      </td>
+                    } @else if (cell.kind === 'blackout') {
+                      <td class="cell" [attr.colspan]="cell.span">
+                        <div class="block closed" [title]="'Blocked: ' + cell.reason">
+                          <span class="block-title">{{ cell.reason }}</span>
+                        </div>
+                      </td>
+                    } @else {
+                      <td class="cell" [attr.colspan]="cell.span">
+                        <button type="button" class="block"
+                          [class.mine]="cell.booking.isMine"
+                          [class.others]="!cell.booking.isMine"
+                          [class.pending]="cell.booking.status === 'PendingApproval'"
+                          [class.live]="cell.booking.status === 'CheckedIn'"
+                          [title]="cell.booking.title + ' — ' + cell.booking.organizerName + ' (' + statusLabel(cell.booking.status) + ')'"
+                          (click)="openBooking(cell.booking)">
+                          <span class="block-title">{{ cell.booking.isMine ? cell.booking.title : cell.booking.organizerName }}</span>
+                          @if (cell.span > 2) {
+                            <span class="block-time">{{ fmt(cell.booking.startAt) }}–{{ fmt(cell.booking.endAt) }}</span>
+                          }
+                        </button>
+                      </td>
+                    }
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+        <p class="legend">
+          <span class="chip k-free"></span> Free
+          <span class="chip k-others"></span> Booked
+          <span class="chip k-mine"></span> Yours
+          <span class="chip k-pending"></span> Tentative
+          <span class="chip k-live"></span> In progress
+          <span class="chip k-closed"></span> Blocked
+        </p>
+      }
     }
   </main>
 </div>
@@ -176,7 +249,7 @@
         <div class="tile" [style.background]="tile(d.room)">{{ d.room.name.charAt(0) }}</div>
         <div>
           <h2>{{ d.room.name }}</h2>
-          <p class="sub">{{ d.room.capacity }} seats · {{ today }}</p>
+          <p class="sub">{{ d.room.capacity }} seats · {{ selectedDateLabel() }}</p>
         </div>
       </header>
       <form (ngSubmit)="submitDraft()">
@@ -275,7 +348,8 @@
         <div>
           <h2>{{ booking.title }}</h2>
           <p class="sub">
-            {{ roomName(booking.roomId) }} · {{ fmt(booking.startAt) }}–{{ fmt(booking.endAt) }}
+            {{ roomName(booking.roomId) }} · {{ fmtDate(booking.startAt) }}
+            {{ fmt(booking.startAt) }}–{{ fmt(booking.endAt) }}
             @if (booking.seriesId) { · series }
           </p>
         </div>
