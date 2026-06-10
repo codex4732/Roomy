@@ -33,17 +33,20 @@ public static class BookingEndpoints
     }
 
     public sealed record CreateBookingRequest(
-        Guid RoomId, string Title, DateTimeOffset StartAt, DateTimeOffset EndAt, int? AttendeeCount);
+        Guid RoomId, string Title, DateTimeOffset StartAt, DateTimeOffset EndAt, int? AttendeeCount,
+        string? SetupNotes, List<string>? Participants);
 
     public sealed record CreateSeriesRequest(
         Guid RoomId, string Title, DateTimeOffset StartAt, DateTimeOffset EndAt,
-        string Frequency, int Count, bool SkipConflicts);
+        string Frequency, int Count, bool SkipConflicts,
+        string? SetupNotes, List<string>? Participants);
 
     public sealed record DeclineRequest(string? Reason);
 
     public sealed record BookingDto(
         Guid Id, Guid RoomId, string Title, DateTimeOffset StartAt, DateTimeOffset EndAt,
-        string Status, string OrganizerName, bool IsMine, Guid? SeriesId, bool CheckinRequired);
+        string Status, string OrganizerName, bool IsMine, Guid? SeriesId, bool CheckinRequired,
+        string? SetupNotes, List<string> Participants);
 
     public sealed record SeriesResult(Guid SeriesId, List<BookingDto> Created, List<DateTimeOffset> Skipped);
 
@@ -60,14 +63,16 @@ public static class BookingEndpoints
                     || b.Status == BookingStatus.CheckedIn))
             .OrderBy(b => b.StartAt)
             .Select(b => new BookingDto(b.Id, b.RoomId, b.Title, b.StartAt, b.EndAt, b.Status.ToString(),
-                b.Organizer!.Name, b.OrganizerId == userId, b.SeriesId, b.Room!.CheckinRequired))
+                b.Organizer!.Name, b.OrganizerId == userId, b.SeriesId, b.Room!.CheckinRequired,
+                b.SetupNotes, b.Participants))
             .ToListAsync());
     }
 
     private static async Task<IResult> CreateAsync(
         CreateBookingRequest request, RoomyDbContext db, ITenantContext tenant, ClaimsPrincipal principal)
     {
-        var prepared = await PrepareAsync(request.RoomId, request.Title, request.StartAt, request.EndAt, db, tenant, principal);
+        var prepared = await PrepareAsync(request.RoomId, request.Title, request.StartAt, request.EndAt,
+            request.SetupNotes, request.Participants, db, tenant, principal);
         if (prepared.Error is not null)
         {
             return prepared.Error;
@@ -99,7 +104,8 @@ public static class BookingEndpoints
             return Problem($"Series must have between 2 and {maxCount} occurrences.");
         }
 
-        var prepared = await PrepareAsync(request.RoomId, request.Title, request.StartAt, request.EndAt, db, tenant, principal);
+        var prepared = await PrepareAsync(request.RoomId, request.Title, request.StartAt, request.EndAt,
+            request.SetupNotes, request.Participants, db, tenant, principal);
         if (prepared.Error is not null)
         {
             return prepared.Error;
@@ -238,7 +244,7 @@ public static class BookingEndpoints
             .OrderBy(b => b.StartAt)
             .Select(b => new
             {
-                b.Id, b.Title, b.StartAt, b.EndAt, b.SeriesId,
+                b.Id, b.Title, b.StartAt, b.EndAt, b.SeriesId, b.SetupNotes, b.Participants,
                 Room = b.Room!.Name, Organizer = b.Organizer!.Name, b.CreatedAt,
             })
             .ToListAsync());
@@ -262,17 +268,29 @@ public static class BookingEndpoints
 
     private sealed record Prepared(
         IResult? Error, Room? Room, Guid UserId, string Title, DateTimeOffset Start, DateTimeOffset End,
-        BookingStatus InitialStatus);
+        BookingStatus InitialStatus, string? SetupNotes, List<string> Participants);
 
     private static async Task<Prepared> PrepareAsync(
         Guid roomId, string title, DateTimeOffset startAt, DateTimeOffset endAt,
+        string? setupNotes, List<string>? participants,
         RoomyDbContext db, ITenantContext tenant, ClaimsPrincipal principal)
     {
-        static Prepared Fail(IResult error) => new(error, null, Guid.Empty, "", default, default, default);
+        static Prepared Fail(IResult error) => new(error, null, Guid.Empty, "", default, default, default, null, []);
 
         if (string.IsNullOrWhiteSpace(title))
         {
             return Fail(Problem("A booking title is required."));
+        }
+
+        var cleanParticipants = (participants ?? [])
+            .Select(p => p.Trim()).Where(p => p.Length > 0).Distinct().ToList();
+        if (cleanParticipants.Count > 50 || cleanParticipants.Any(p => p.Length > 200))
+        {
+            return Fail(Problem("Up to 50 participants, 200 characters each."));
+        }
+        if (setupNotes?.Length > 1000)
+        {
+            return Fail(Problem("Setup notes are limited to 1000 characters."));
         }
 
         var start = startAt.ToUniversalTime();
@@ -300,7 +318,8 @@ public static class BookingEndpoints
         }
 
         return new Prepared(null, room, userId, title.Trim(), start, end,
-            room.RequiresApproval ? BookingStatus.PendingApproval : BookingStatus.Confirmed);
+            room.RequiresApproval ? BookingStatus.PendingApproval : BookingStatus.Confirmed,
+            string.IsNullOrWhiteSpace(setupNotes) ? null : setupNotes.Trim(), cleanParticipants);
     }
 
     private static Booking NewBooking(Prepared prepared, int? attendees) => new()
@@ -310,14 +329,16 @@ public static class BookingEndpoints
         Title = prepared.Title,
         StartAt = prepared.Start,
         EndAt = prepared.End,
-        AttendeeCount = Math.Max(1, attendees ?? 1),
+        AttendeeCount = Math.Max(1, attendees ?? Math.Max(1, prepared.Participants.Count)),
         Status = prepared.InitialStatus,
+        SetupNotes = prepared.SetupNotes,
+        Participants = prepared.Participants,
     };
 
     private static BookingDto ToDto(Booking booking, Room room, ClaimsPrincipal principal)
         => new(booking.Id, booking.RoomId, booking.Title, booking.StartAt, booking.EndAt,
             booking.Status.ToString(), principal.FindFirstValue(JwtRegisteredClaimNames.Email) ?? "",
-            true, booking.SeriesId, room.CheckinRequired);
+            true, booking.SeriesId, room.CheckinRequired, booking.SetupNotes, booking.Participants);
 
     private static bool IsOverlap(DbUpdateException ex)
         => ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation };

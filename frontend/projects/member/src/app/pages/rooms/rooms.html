@@ -176,7 +176,7 @@
         <div class="tile" [style.background]="tile(d.room)">{{ d.room.name.charAt(0) }}</div>
         <div>
           <h2>{{ d.room.name }}</h2>
-          <p class="sub">{{ d.slot.label }} · {{ d.room.capacity }} seats</p>
+          <p class="sub">{{ d.room.capacity }} seats · {{ today }}</p>
         </div>
       </header>
       <form (ngSubmit)="submitDraft()">
@@ -187,14 +187,30 @@
         </label>
         <div class="row">
           <label>
-            Duration
-            <select name="duration" [ngModel]="d.durationMinutes"
-              (ngModelChange)="draft.set({ ...d, durationMinutes: +$event })">
-              @for (minutes of durations; track minutes) {
-                <option [value]="minutes">{{ minutes }} min</option>
+            Starts
+            <select name="startTime" [ngModel]="d.startTime"
+              (ngModelChange)="draft.set({ ...d, startTime: $event })">
+              @for (t of timeOptions; track t) {
+                <option [value]="t">{{ t }}</option>
               }
             </select>
           </label>
+          <label>
+            Ends
+            <select name="endTime" [ngModel]="d.endTime"
+              (ngModelChange)="draft.set({ ...d, endTime: $event })">
+              @for (t of timeOptions; track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            End date
+            <input name="endDate" type="date" [ngModel]="d.endDate"
+              (ngModelChange)="draft.set({ ...d, endDate: $event })" />
+          </label>
+        </div>
+        <div class="row">
           <label>
             Repeat
             <select name="repeat" [ngModel]="d.repeat"
@@ -212,6 +228,23 @@
             </label>
           }
         </div>
+        <button type="button" class="link" (click)="draft.set({ ...d, advanced: !d.advanced })">
+          {{ d.advanced ? '▾ Hide advanced setup' : '▸ Advanced setup — participants & room preparation' }}
+        </button>
+        @if (d.advanced) {
+          <label>
+            Participants <span class="opt">(comma-separated names or emails)</span>
+            <input name="participants" [ngModel]="d.participantsText"
+              (ngModelChange)="draft.set({ ...d, participantsText: $event })"
+              placeholder="ana@acme.test, Ben, carol@acme.test" />
+          </label>
+          <label>
+            Room setup request <span class="opt">(for facility staff)</span>
+            <textarea name="setupNotes" rows="2" maxlength="1000" [ngModel]="d.setupNotes"
+              (ngModelChange)="draft.set({ ...d, setupNotes: $event })"
+              placeholder="e.g. U-shape seating for 10, projector, 2 flip charts, coffee at start"></textarea>
+          </label>
+        }
         @if (d.room.requiresApproval) {
           <p class="hint">Needs Facility Manager approval — held as tentative until decided.</p>
         }
@@ -248,6 +281,16 @@
         </div>
         <span class="status-chip" [attr.data-status]="booking.status">{{ statusLabel(booking.status) }}</span>
       </header>
+      @if (booking.participants.length) {
+        <div class="people">
+          @for (person of booking.participants; track person) {
+            <span class="person">{{ person }}</span>
+          }
+        </div>
+      }
+      @if (booking.setupNotes) {
+        <p class="setup"><strong>Setup:</strong> {{ booking.setupNotes }}</p>
+      }
       @if (booking.status === 'Confirmed' && booking.checkinRequired && !canCheckIn(booking)) {
         <p class="hint">Check-in opens 10 minutes before start; no-shows release after {{ graceMinutes() }} minutes.</p>
       }

@@ -27,7 +27,9 @@ public static class BookingRules
         }
         if (duration > TimeSpan.FromMinutes(settings.MaxDurationMinutes))
         {
-            return $"Bookings cannot exceed {TimeSpan.FromMinutes(settings.MaxDurationMinutes).TotalHours:0.#} hours.";
+            var max = TimeSpan.FromMinutes(settings.MaxDurationMinutes);
+            var maxText = max.TotalHours < 48 ? $"{max.TotalHours:0.#} hours" : $"{max.TotalDays:0.#} days";
+            return $"Bookings cannot exceed {maxText}.";
         }
         if (end <= now)
         {

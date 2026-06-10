@@ -65,6 +65,7 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
             booking.HasIndex(b => new { b.TenantId, b.OrganizerId, b.StartAt });
             booking.Property(b => b.Title).HasMaxLength(200);
             booking.Property(b => b.CancelReason).HasMaxLength(500);
+            booking.Property(b => b.SetupNotes).HasMaxLength(1000);
             booking.HasOne(b => b.Room).WithMany().HasForeignKey(b => b.RoomId);
             booking.HasOne(b => b.Organizer).WithMany().HasForeignKey(b => b.OrganizerId);
         });

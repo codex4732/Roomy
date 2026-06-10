@@ -11,6 +11,8 @@ interface PendingBooking {
   organizer: string;
   createdAt: string;
   seriesId: string | null;
+  setupNotes: string | null;
+  participants: string[];
 }
 
 @Component({
@@ -33,7 +35,11 @@ interface PendingBooking {
                 <td>{{ fmt(item.startAt) }} – {{ fmtTime(item.endAt) }}@if (item.seriesId) { <span class="badge">series</span> }</td>
                 <td>{{ item.room }}</td>
                 <td>{{ item.title }}</td>
-                <td>{{ item.organizer }}</td>
+                <td>
+                  {{ item.organizer }}
+                  @if (item.participants.length) { <span class="sub">+{{ item.participants.length }} participants</span> }
+                  @if (item.setupNotes) { <div class="setup">🛠 {{ item.setupNotes }}</div> }
+                </td>
                 <td class="actions">
                   <button (click)="decide(item, true)">Approve</button>
                   <button class="warn" (click)="decide(item, false)">Decline</button>
@@ -55,6 +61,8 @@ interface PendingBooking {
     td { padding: 0.65rem 1rem; border-top: 1px solid #eef1f4; }
     .badge { background: #fff1cc; color: #8a6d00; border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.68rem; margin-left: 0.4rem; }
     .actions { display: flex; gap: 0.4rem; }
+    .sub { color: #69788c; font-size: 0.78rem; margin-left: 0.3rem; }
+    .setup { color: #92400e; background: #fffbeb; border-radius: 6px; padding: 0.2rem 0.5rem; font-size: 0.78rem; margin-top: 0.25rem; }
     button { padding: 0.4rem 0.9rem; border: none; border-radius: 8px; background: #15806b; color: #fff; cursor: pointer; }
     button.warn { background: #c2402a; }
   `,

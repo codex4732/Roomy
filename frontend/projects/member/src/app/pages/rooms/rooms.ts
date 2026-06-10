@@ -24,12 +24,16 @@ type GridCell =
 interface BookingDraft {
   room: RoomDto;
   slot: TimeSlot;
-  startIso: string;
   title: string;
-  durationMinutes: number;
+  startTime: string;
+  endTime: string;
+  endDate: string;
   repeat: 'none' | 'daily' | 'weekly';
   count: number;
   conflictCount: number;
+  advanced: boolean;
+  participantsText: string;
+  setupNotes: string;
 }
 
 const DAY_START_HOUR = 8;
@@ -75,7 +79,7 @@ export class Rooms {
   );
 
   protected readonly slots: TimeSlot[] = buildSlots();
-  protected readonly durations = [30, 60, 90, 120];
+  protected readonly timeOptions = buildTimeOptions();
 
   protected readonly today = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -243,15 +247,20 @@ export class Rooms {
     }
     this.notice.set(null);
     this.selected.set(null);
+    const endIndex = this.timeOptions.indexOf(slot.label) + 2;
     this.draft.set({
       room,
       slot,
-      startIso: this.slotInstant(slot, location).toISOString(),
       title: '',
-      durationMinutes: 60,
+      startTime: slot.label,
+      endTime: this.timeOptions[Math.min(endIndex, this.timeOptions.length - 1)],
+      endDate: dateString(todayInZone(location.timezone)),
       repeat: 'none',
       count: 4,
       conflictCount: 0,
+      advanced: false,
+      participantsText: '',
+      setupNotes: '',
     });
   }
 
@@ -266,8 +275,19 @@ export class Rooms {
     if (!draft || !location || !draft.title.trim()) {
       return;
     }
-    const start = new Date(draft.startIso);
-    const end = new Date(start.getTime() + draft.durationMinutes * 60_000);
+    const tz = location.timezone;
+    const [sh, sm] = draft.startTime.split(':').map(Number);
+    const [eh, em] = draft.endTime.split(':').map(Number);
+    const [ey, emo, ed] = draft.endDate.split('-').map(Number);
+    const start = zonedTimeToUtc(todayInZone(tz), sh, sm, tz);
+    const end = zonedTimeToUtc({ year: ey, month: emo, day: ed }, eh, em, tz);
+    if (end <= start) {
+      this.notice.set('End must be after start.');
+      return;
+    }
+    const participants = draft.participantsText
+      .split(',').map((p) => p.trim()).filter((p) => p.length > 0);
+    const setupNotes = draft.setupNotes.trim() || null;
 
     this.saving.set(true);
     try {
@@ -277,6 +297,8 @@ export class Rooms {
           title: draft.title.trim(),
           startAt: start.toISOString(),
           endAt: end.toISOString(),
+          participants,
+          setupNotes,
         });
         this.notice.set(created.status === 'PendingApproval'
           ? `Requested ${draft.room.name} — awaiting approval.`
@@ -292,6 +314,8 @@ export class Rooms {
             frequency: draft.repeat,
             count: draft.count,
             skipConflicts,
+            participants,
+            setupNotes,
           },
         ));
         this.notice.set(`Booked ${result.created.length} occurrence(s)` +
@@ -391,6 +415,20 @@ export class Rooms {
   private slotInstant(slot: TimeSlot, location: LocationDto): Date {
     return zonedTimeToUtc(todayInZone(location.timezone), slot.hour, slot.minute, location.timezone);
   }
+}
+
+function dateString(d: { year: number; month: number; day: number }): string {
+  return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
+}
+
+function buildTimeOptions(): string[] {
+  const options: string[] = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (const minute of [0, 15, 30, 45]) {
+      options.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+    }
+  }
+  return options;
 }
 
 function buildSlots(): TimeSlot[] {

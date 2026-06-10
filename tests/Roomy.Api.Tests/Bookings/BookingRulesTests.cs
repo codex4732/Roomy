@@ -18,9 +18,22 @@ public class BookingRulesTests
     [InlineData(10, 7, 10, 37)]   // not snapped
     [InlineData(11, 0, 10, 0)]    // end before start
     [InlineData(10, 0, 10, 0)]    // zero length
-    [InlineData(10, 0, 19, 0)]    // exceeds 8h max
     public void Invalid_times_are_rejected(int sh, int sm, int eh, int em) =>
         Assert.NotNull(BookingRules.Validate(At(sh, sm), At(eh, em), Now, Settings));
+
+    [Fact]
+    public void Booking_longer_than_a_month_is_rejected() =>
+        Assert.Contains("days",
+            BookingRules.Validate(At(10), At(10).AddDays(31), Now, Settings)!);
+
+    [Fact]
+    public void Month_long_booking_is_allowed() =>
+        Assert.Null(BookingRules.Validate(At(10), At(10).AddDays(30), Now, Settings));
+
+    [Fact]
+    public void Custom_max_duration_is_enforced() =>
+        Assert.Contains("hours", BookingRules.Validate(At(10), At(19), Now,
+            new TenantSettings { MaxDurationMinutes = 480 })!);
 
     [Fact]
     public void Booking_beyond_window_is_rejected() =>

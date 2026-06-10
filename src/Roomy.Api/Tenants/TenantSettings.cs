@@ -4,7 +4,8 @@ namespace Roomy.Api.Tenants;
 public sealed class TenantSettings
 {
     public int BookingWindowDays { get; set; } = 60;
-    public int MaxDurationMinutes { get; set; } = 480;
+    /// <summary>30 days — long project-room reservations are allowed.</summary>
+    public int MaxDurationMinutes { get; set; } = 43200;
     public int MinDurationMinutes { get; set; } = 15;
     public int MaxActiveBookingsPerUser { get; set; } = 10;
     public int CheckinGraceMinutes { get; set; } = 10;
