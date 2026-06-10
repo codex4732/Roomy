@@ -81,6 +81,8 @@ dotnet ef database update --project src/Roomy.Api
 
 **Convention (technical design §4):** every new tenant-owned table gets a `tenant_id` column, an EF global query filter, and a row-level-security policy added in its migration. CI will grow a schema test that fails if a table is missing RLS.
 
+**Postgres extensions:** the bookings migration runs `CREATE EXTENSION IF NOT EXISTS btree_gist` (for the no-double-booking exclusion constraint). The compose Postgres allows this out of the box; on a managed/self-run Postgres where the app user lacks the privilege, run it once as a superuser before migrating.
+
 ## Frontend
 
 ```bash
