@@ -19,6 +19,25 @@ export interface RoomDto {
   status: string;
 }
 
+export interface BookingDto {
+  id: string;
+  roomId: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  organizerName: string;
+  isMine: boolean;
+}
+
+export interface CreateBookingRequest {
+  roomId: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  attendeeCount?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RoomsService {
   private readonly http = inject(HttpClient);
@@ -29,5 +48,19 @@ export class RoomsService {
 
   listRooms(locationId: string): Promise<RoomDto[]> {
     return firstValueFrom(this.http.get<RoomDto[]>(`/api/v1/locations/${locationId}/rooms`));
+  }
+
+  listBookings(locationId: string, from: string, to: string): Promise<BookingDto[]> {
+    return firstValueFrom(
+      this.http.get<BookingDto[]>('/api/v1/bookings', { params: { locationId, from, to } }),
+    );
+  }
+
+  createBooking(request: CreateBookingRequest): Promise<BookingDto> {
+    return firstValueFrom(this.http.post<BookingDto>('/api/v1/bookings', request));
+  }
+
+  cancelBooking(id: string): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`/api/v1/bookings/${id}/cancel`, {}));
   }
 }

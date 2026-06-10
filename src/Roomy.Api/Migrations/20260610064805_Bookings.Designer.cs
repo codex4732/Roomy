@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Roomy.Api.Common.Persistence;
@@ -11,9 +12,11 @@ using Roomy.Api.Common.Persistence;
 namespace Roomy.Api.Migrations
 {
     [DbContext(typeof(RoomyDbContext))]
-    partial class RoomyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260610064805_Bookings")]
+    partial class Bookings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

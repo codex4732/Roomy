@@ -17,6 +17,7 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<Room> Rooms => Set<Room>();
+    public DbSet<Bookings.Booking> Bookings => Set<Bookings.Booking>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +49,16 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
             location.Property(l => l.Name).HasMaxLength(200);
             location.Property(l => l.Timezone).HasMaxLength(64);
             location.Property(l => l.Address).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<Bookings.Booking>(booking =>
+        {
+            booking.HasIndex(b => new { b.TenantId, b.RoomId, b.StartAt });
+            booking.HasIndex(b => new { b.TenantId, b.OrganizerId, b.StartAt });
+            booking.Property(b => b.Title).HasMaxLength(200);
+            booking.Property(b => b.CancelReason).HasMaxLength(500);
+            booking.HasOne(b => b.Room).WithMany().HasForeignKey(b => b.RoomId);
+            booking.HasOne(b => b.Organizer).WithMany().HasForeignKey(b => b.OrganizerId);
         });
 
         modelBuilder.Entity<Room>(room =>

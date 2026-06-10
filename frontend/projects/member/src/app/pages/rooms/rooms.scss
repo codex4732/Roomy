@@ -68,6 +68,80 @@
   margin: 0;
 }
 
+.notice {
+  background: #e8f0fe;
+  color: #1a4480;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.book-panel {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0 0 0.8rem;
+    font-size: 1.05rem;
+    color: #223;
+  }
+
+  form {
+    display: flex;
+    align-items: end;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.9rem;
+    color: #334;
+  }
+
+  input,
+  select {
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #ccd;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+
+  input {
+    min-width: 260px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  button {
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 8px;
+    background: #1f6f5c;
+    color: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    &.secondary {
+      background: #eef0f2;
+      color: #334;
+    }
+  }
+}
+
 .error {
   color: #b3261e;
 }
@@ -120,10 +194,24 @@
 
     &.free {
       background: #e8f5ef;
-      cursor: default;
+      cursor: pointer;
 
       &:hover {
         background: #cdeadd;
+      }
+    }
+
+    &.busy {
+      background: #f3d8d6;
+      cursor: default;
+    }
+
+    &.mine {
+      background: #cfe3f7;
+      cursor: pointer;
+
+      &:hover {
+        background: #b7d4f0;
       }
     }
   }
@@ -167,6 +255,16 @@
     &.free {
       background: #e8f5ef;
       border: 1px solid #cdeadd;
+    }
+
+    &.busy {
+      background: #f3d8d6;
+      border: 1px solid #e8c2bf;
+    }
+
+    &.mine {
+      background: #cfe3f7;
+      border: 1px solid #b7d4f0;
     }
   }
 }

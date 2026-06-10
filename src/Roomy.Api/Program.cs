@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Roomy.Api.Bookings;
 using Roomy.Api.Common.Persistence;
 using Roomy.Api.Common.Tenancy;
 using Roomy.Api.Identity;
@@ -79,6 +80,7 @@ app.MapGroup("/api/v1")
     .MapAuthEndpoints()
     .MapPlatformEndpoints()
     .MapLocationEndpoints()
+    .MapBookingEndpoints()
     .MapGet("/ping", () => Results.Ok(new { status = "ok" }));
 
 if (app.Environment.IsDevelopment())
