@@ -17,6 +17,25 @@ frontend/             Angular workspace — three apps under projects/
 docs/                 PRD and technical design
 ```
 
+## Run the whole stack in Docker
+
+```bash
+docker compose up --build
+```
+
+Brings up PostgreSQL, the API, and nginx serving all three Angular apps:
+
+- http://localhost:8080/ — member app (admin at `/admin/`, kiosk at `/kiosk/`)
+- http://localhost:8080/api/... and `/swagger` — proxied to the API container
+- http://localhost:5023 — API exposed directly
+- `localhost:5432` — PostgreSQL
+
+For day-to-day development you'll usually want only the database in Docker (faster feedback via `dotnet run` / `ng serve`):
+
+```bash
+docker compose up -d postgres
+```
+
 ## Backend
 
 ```bash

@@ -1,0 +1,9 @@
+bin/
+obj/
+dist/
+node_modules/
+frontend/
+docs/
+.git/
+.github/
+**/*.md

@@ -9,8 +9,18 @@ A simple room booking application built in dotnet
 
 ## Quick start
 
+Everything in Docker:
+
+```bash
+docker compose up --build
+# web: http://localhost:8080  (admin at /admin/, kiosk at /kiosk/)
+# api: http://localhost:5023  (also proxied at :8080/api and :8080/swagger)
+```
+
+Or for development with fast feedback:
+
 ```bash
 docker compose up -d postgres
-dotnet run --project src/Roomy.Api     # API + Swagger at /swagger
+dotnet run --project src/Roomy.Api     # API + Swagger at localhost:5023/swagger
 cd frontend && npm ci && npm start -- member
 ```
