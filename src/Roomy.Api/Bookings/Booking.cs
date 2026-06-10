@@ -28,6 +28,10 @@ public sealed class Booking : ITenantOwned
 
     public int AttendeeCount { get; set; } = 1;
 
+    public Guid? SeriesId { get; set; }
+
+    public DateTimeOffset? CheckedInAt { get; set; }
+
     public string? CancelReason { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

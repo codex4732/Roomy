@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Quartz;
 using Roomy.Api.Bookings;
 using Roomy.Api.Common.Persistence;
 using Roomy.Api.Common.Tenancy;
@@ -49,7 +50,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
         ClockSkew = TimeSpan.FromSeconds(30),
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Staff", p => p.RequireRole(
+        nameof(Roomy.Api.Identity.UserRole.TenantAdmin), nameof(Roomy.Api.Identity.UserRole.FacilityManager)));
+    options.AddPolicy("TenantAdmin", p => p.RequireRole(nameof(Roomy.Api.Identity.UserRole.TenantAdmin)));
+});
+
+builder.Services.AddQuartz(q =>
+{
+    var jobKey = new JobKey("booking-lifecycle");
+    q.AddJob<BookingLifecycleJob>(o => o.WithIdentity(jobKey));
+    q.AddTrigger(t => t.ForJob(jobKey).WithSimpleSchedule(s => s.WithIntervalInSeconds(60).RepeatForever()).StartNow());
+});
+builder.Services.AddQuartzHostedService(o => o.WaitForJobsToComplete = false);
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<RoomyDbContext>("database");
@@ -81,6 +95,7 @@ app.MapGroup("/api/v1")
     .MapPlatformEndpoints()
     .MapLocationEndpoints()
     .MapBookingEndpoints()
+    .MapUserEndpoints()
     .MapGet("/ping", () => Results.Ok(new { status = "ok" }));
 
 if (app.Environment.IsDevelopment())

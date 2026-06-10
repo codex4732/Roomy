@@ -1,7 +1,8 @@
 <header class="topbar">
-  <h1>Roomy</h1>
+  <h1><span class="logo">◴</span> Roomy</h1>
   <div class="user">
-    <span>{{ auth.user()?.name }}</span>
+    <span class="avatar">{{ auth.user()?.name?.charAt(0) }}</span>
+    <span class="name">{{ auth.user()?.name }}</span>
     <button type="button" (click)="logout()">Sign out</button>
   </div>
 </header>
@@ -31,39 +32,83 @@
   }
 
   @if (draft(); as d) {
-    <section class="book-panel">
+    <section class="panel">
       <h2>Book {{ d.room.name }} · {{ d.slot.label }}</h2>
       <form (ngSubmit)="submitDraft()">
         <label>
           Title
-          <input
-            name="title"
-            [ngModel]="d.title"
-            (ngModelChange)="draft.set({ ...d, title: $event })"
-            required
-            maxlength="200"
-            placeholder="What's the meeting?"
-          />
+          <input name="title" [ngModel]="d.title" (ngModelChange)="draft.set({ ...d, title: $event })"
+            required maxlength="200" placeholder="What's the meeting?" />
         </label>
         <label>
           Duration
-          <select
-            name="duration"
-            [ngModel]="d.durationMinutes"
-            (ngModelChange)="draft.set({ ...d, durationMinutes: +$event })"
-          >
+          <select name="duration" [ngModel]="d.durationMinutes"
+            (ngModelChange)="draft.set({ ...d, durationMinutes: +$event })">
             @for (minutes of durations; track minutes) {
               <option [value]="minutes">{{ minutes }} min</option>
             }
           </select>
         </label>
+        <label>
+          Repeat
+          <select name="repeat" [ngModel]="d.repeat"
+            (ngModelChange)="draft.set({ ...d, repeat: $event, conflictCount: 0 })">
+            <option value="none">Just once</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </label>
+        @if (d.repeat !== 'none') {
+          <label>
+            Times
+            <input name="count" type="number" min="2" max="26" [ngModel]="d.count"
+              (ngModelChange)="draft.set({ ...d, count: +$event })" />
+          </label>
+        }
         <div class="actions">
-          <button type="submit" [disabled]="saving() || !d.title.trim()">
-            {{ saving() ? 'Booking…' : 'Book' }}
-          </button>
-          <button type="button" class="secondary" (click)="closeDraft()">Cancel</button>
+          @if (d.conflictCount > 0) {
+            <button type="button" class="warn" [disabled]="saving()" (click)="submitDraft(true)">
+              {{ d.conflictCount }} conflict(s) — book the rest
+            </button>
+          } @else {
+            <button type="submit" [disabled]="saving() || !d.title.trim()">
+              {{ saving() ? 'Booking…' : d.room.requiresApproval ? 'Request booking' : 'Book' }}
+            </button>
+          }
+          <button type="button" class="secondary" (click)="closePanels()">Close</button>
         </div>
       </form>
+      @if (d.room.requiresApproval) {
+        <p class="hint">This room needs Facility Manager approval — the slot is held as tentative.</p>
+      }
+    </section>
+  }
+
+  @if (selected(); as booking) {
+    <section class="panel">
+      <h2>{{ booking.title }}</h2>
+      <p class="meta">
+        {{ fmt(booking.startAt) }}–{{ fmt(booking.endAt) }} · {{ booking.status }}
+        @if (booking.seriesId) { · part of a series }
+      </p>
+      <div class="actions">
+        @if (canCheckIn(booking)) {
+          <button type="button" [disabled]="saving()" (click)="act('check-in')">Check in</button>
+        }
+        @if (booking.status === 'CheckedIn') {
+          <button type="button" [disabled]="saving()" (click)="act('end')">End meeting</button>
+        }
+        @if (booking.status === 'Confirmed' || booking.status === 'PendingApproval') {
+          <button type="button" class="warn" [disabled]="saving()" (click)="act('cancel')">Cancel booking</button>
+        }
+        @if (booking.seriesId) {
+          <button type="button" class="warn" [disabled]="saving()" (click)="act('cancel-series')">Cancel series</button>
+        }
+        <button type="button" class="secondary" (click)="closePanels()">Close</button>
+      </div>
+      @if (booking.status === 'Confirmed' && booking.checkinRequired && !canCheckIn(booking)) {
+        <p class="hint">Check-in opens 10 minutes before start; no-shows are auto-released after {{ graceMinutes() }} minutes.</p>
+      }
     </section>
   }
 
@@ -104,18 +149,21 @@
               @for (slot of slots; track slot.label) {
                 @if (bookingAt(room.id, slot); as booking) {
                   <td
-                    class="slot busy"
+                    class="slot"
                     [class.mine]="booking.isMine"
+                    [class.busy]="!booking.isMine"
+                    [class.pending]="booking.status === 'PendingApproval'"
+                    [class.checked-in]="booking.status === 'CheckedIn'"
                     [class.hour-start]="slot.minute === 0"
-                    [title]="booking.title + ' — ' + booking.organizerName + (booking.isMine ? ' (click to cancel)' : '')"
-                    (click)="cancelBooking(booking)"
+                    [title]="booking.title + ' — ' + booking.organizerName + ' (' + booking.status + ')'"
+                    (click)="onSlotClick(room, slot)"
                   ></td>
                 } @else {
                   <td
                     class="slot free"
                     [class.hour-start]="slot.minute === 0"
                     [title]="room.name + ' · ' + slot.label + ' — book this slot'"
-                    (click)="openDraft(room, slot)"
+                    (click)="onSlotClick(room, slot)"
                   ></td>
                 }
               }
@@ -127,7 +175,9 @@
     <p class="legend">
       <span class="chip free"></span> Free
       <span class="chip busy"></span> Booked
-      <span class="chip mine"></span> Yours (click to cancel)
+      <span class="chip mine"></span> Yours
+      <span class="chip pending"></span> Awaiting approval
+      <span class="chip checked-in"></span> In progress
     </p>
   }
 </main>

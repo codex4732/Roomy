@@ -18,6 +18,7 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Bookings.Booking> Bookings => Set<Bookings.Booking>();
+    public DbSet<Bookings.BookingSeries> BookingSeries => Set<Bookings.BookingSeries>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,13 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
             tenant.HasIndex(t => t.Slug).IsUnique();
             tenant.Property(t => t.Slug).HasMaxLength(40);
             tenant.Property(t => t.Name).HasMaxLength(200);
+            tenant.OwnsOne(t => t.Settings, s => s.ToJson());
+        });
+
+        modelBuilder.Entity<Bookings.BookingSeries>(series =>
+        {
+            series.HasIndex(s => new { s.TenantId, s.OrganizerId });
+            series.Property(s => s.Title).HasMaxLength(200);
         });
 
         modelBuilder.Entity<User>(user =>

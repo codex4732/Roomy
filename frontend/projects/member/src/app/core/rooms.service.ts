@@ -28,6 +28,8 @@ export interface BookingDto {
   status: string;
   organizerName: string;
   isMine: boolean;
+  seriesId: string | null;
+  checkinRequired: boolean;
 }
 
 export interface CreateBookingRequest {

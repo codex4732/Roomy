@@ -18,6 +18,7 @@ public static class DevSeeder
     public const string DemoSlug = "demo";
     public const string AdminEmail = "admin@demo.test";
     public const string MemberEmail = "member@demo.test";
+    public const string FacilityEmail = "facility@demo.test";
     public const string Password = "RoomyDemo123!";
 
     public static async Task MigrateAndSeedAsync(IServiceProvider services)
@@ -50,7 +51,14 @@ public static class DevSeeder
             TenantId = tenant.Id, Email = MemberEmail, Name = "Demo Member", Role = UserRole.Member,
         };
         member.PasswordHash = hasher.HashPassword(member, Password);
-        db.Users.AddRange(admin, member);
+
+        var facility = new User
+        {
+            TenantId = tenant.Id, Email = FacilityEmail, Name = "Demo Facility Manager",
+            Role = UserRole.FacilityManager,
+        };
+        facility.PasswordHash = hasher.HashPassword(facility, Password);
+        db.Users.AddRange(admin, member, facility);
 
         var hq = new Location
         {
