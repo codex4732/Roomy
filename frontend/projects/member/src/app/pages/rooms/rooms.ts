@@ -17,6 +17,10 @@ interface TimeSlot {
   minute: number;
 }
 
+type GridCell =
+  | { kind: 'free'; slot: TimeSlot; span: 1 }
+  | { kind: 'booking'; slot: TimeSlot; span: number; booking: BookingDto };
+
 interface BookingDraft {
   room: RoomDto;
   slot: TimeSlot;
@@ -31,6 +35,15 @@ interface BookingDraft {
 const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 18;
 const SLOT_MINUTES = 30;
+
+const TILE_GRADIENTS = [
+  'linear-gradient(135deg, #818cf8, #6366f1)',
+  'linear-gradient(135deg, #34d399, #10b981)',
+  'linear-gradient(135deg, #fbbf24, #f59e0b)',
+  'linear-gradient(135deg, #f472b6, #ec4899)',
+  'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+  'linear-gradient(135deg, #a78bfa, #8b5cf6)',
+];
 
 @Component({
   selector: 'app-rooms',
@@ -54,6 +67,7 @@ export class Rooms {
   protected readonly selected = signal<BookingDto | null>(null);
   protected readonly saving = signal(false);
   protected readonly graceMinutes = signal(10);
+  protected readonly view = signal<'grid' | 'mine'>('grid');
   private readonly tick = signal(Date.now());
 
   protected readonly selectedLocation = computed(() =>
@@ -67,6 +81,13 @@ export class Rooms {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
+  });
+
+  protected readonly greeting = computed(() => {
+    const hour = new Date(this.tick()).getHours();
+    const name = this.auth.user()?.name.split(' ')[0] ?? '';
+    const part = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+    return `Good ${part}, ${name}`;
   });
 
   protected readonly slotMap = computed(() => {
@@ -88,6 +109,37 @@ export class Rooms {
     return map;
   });
 
+  protected readonly freeNowCount = computed(() => {
+    const now = this.tick();
+    const busyRooms = new Set(this.bookings()
+      .filter((b) => new Date(b.startAt).getTime() <= now && new Date(b.endAt).getTime() > now)
+      .map((b) => b.roomId));
+    return this.rooms().filter((r) => !busyRooms.has(r.id)).length;
+  });
+
+  protected readonly myBookings = computed(() =>
+    this.bookings().filter((b) => b.isMine)
+      .sort((a, b) => a.startAt.localeCompare(b.startAt)));
+
+  protected readonly myPendingCount = computed(() =>
+    this.myBookings().filter((b) => b.status === 'PendingApproval').length);
+
+  /** Label of the slot containing "now" in the location's zone, for the live marker. */
+  protected readonly nowSlotLabel = computed(() => {
+    const location = this.selectedLocation();
+    if (!location) {
+      return null;
+    }
+    const now = this.tick();
+    for (const slot of this.slots) {
+      const start = this.slotInstant(slot, location).getTime();
+      if (now >= start && now < start + SLOT_MINUTES * 60_000) {
+        return slot.label;
+      }
+    }
+    return null;
+  });
+
   constructor() {
     void this.loadLocations();
     void this.loadSettings();
@@ -96,6 +148,41 @@ export class Rooms {
 
   protected bookingAt(roomId: string, slot: TimeSlot): BookingDto | undefined {
     return this.slotMap().get(`${roomId}|${slot.label}`);
+  }
+
+  /** Collapses consecutive slots of one booking into a single spanning cell. */
+  protected cellsFor(room: RoomDto): GridCell[] {
+    const cells: GridCell[] = [];
+    let i = 0;
+    while (i < this.slots.length) {
+      const slot = this.slots[i];
+      const booking = this.bookingAt(room.id, slot);
+      if (!booking) {
+        cells.push({ kind: 'free', slot, span: 1 });
+        i++;
+        continue;
+      }
+      let span = 1;
+      while (i + span < this.slots.length
+        && this.bookingAt(room.id, this.slots[i + span])?.id === booking.id) {
+        span++;
+      }
+      cells.push({ kind: 'booking', slot, span, booking });
+      i += span;
+    }
+    return cells;
+  }
+
+  protected tile(room: { name: string }): string {
+    let hash = 0;
+    for (const ch of room.name) {
+      hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+    }
+    return TILE_GRADIENTS[Math.abs(hash) % TILE_GRADIENTS.length];
+  }
+
+  protected roomName(roomId: string): string {
+    return this.rooms().find((r) => r.id === roomId)?.name ?? 'Room';
   }
 
   protected canCheckIn(booking: BookingDto): boolean {
@@ -116,10 +203,15 @@ export class Rooms {
     });
   }
 
+  protected statusLabel(status: string): string {
+    return status === 'PendingApproval' ? 'Awaiting approval'
+      : status === 'CheckedIn' ? 'In progress'
+      : status;
+  }
+
   protected async selectLocation(id: string): Promise<void> {
     this.selectedLocationId.set(id);
-    this.draft.set(null);
-    this.selected.set(null);
+    this.closePanels();
     this.loading.set(true);
     this.error.set(null);
     try {
@@ -137,13 +229,14 @@ export class Rooms {
     void this.selectLocation((event.target as HTMLSelectElement).value);
   }
 
-  protected onSlotClick(room: RoomDto, slot: TimeSlot): void {
-    const booking = this.bookingAt(room.id, slot);
-    if (booking) {
-      this.selected.set(booking.isMine ? booking : null);
+  protected openBooking(booking: BookingDto): void {
+    if (booking.isMine) {
       this.draft.set(null);
-      return;
+      this.selected.set(booking);
     }
+  }
+
+  protected openDraft(room: RoomDto, slot: TimeSlot): void {
     const location = this.selectedLocation();
     if (!location) {
       return;
@@ -225,10 +318,12 @@ export class Rooms {
     }
   }
 
-  protected async act(action: 'check-in' | 'end' | 'cancel' | 'cancel-series'): Promise<void> {
-    const booking = this.selected();
+  protected async act(
+    booking: BookingDto,
+    action: 'check-in' | 'end' | 'cancel' | 'cancel-series',
+  ): Promise<void> {
     const location = this.selectedLocation();
-    if (!booking || !location) {
+    if (!location) {
       return;
     }
     this.saving.set(true);
