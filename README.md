@@ -13,8 +13,8 @@ Everything in Docker:
 
 ```bash
 docker compose up --build
-# web: http://localhost:8080  (admin at /admin/, kiosk at /kiosk/)
-# api: http://localhost:5023  (also proxied at :8080/api and :8080/swagger)
+# web: http://localhost:8081  (admin at /admin/, kiosk at /kiosk/)
+# api: http://localhost:5023  (also proxied at :8081/api and :8081/swagger)
 ```
 
 Or for development with fast feedback:

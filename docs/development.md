@@ -25,8 +25,8 @@ docker compose up --build
 
 Brings up PostgreSQL, the API, and nginx serving all three Angular apps:
 
-- http://localhost:8080/ — member app (admin at `/admin/`, kiosk at `/kiosk/`)
-- http://localhost:8080/api/... and `/swagger` — proxied to the API container
+- http://localhost:8081/ — member app (admin at `/admin/`, kiosk at `/kiosk/`)
+- http://localhost:8081/api/... and `/swagger` — proxied to the API container
 - http://localhost:5023 — API exposed directly
 - `localhost:5432` — PostgreSQL
 
