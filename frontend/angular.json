@@ -29,7 +29,9 @@
                 "input": "projects/member/public"
               }
             ],
-            "styles": ["projects/member/src/styles.scss"]
+            "styles": [
+              "projects/member/src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
@@ -65,7 +67,10 @@
               "buildTarget": "member:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test"
@@ -95,7 +100,9 @@
                 "input": "projects/admin/public"
               }
             ],
-            "styles": ["projects/admin/src/styles.scss"]
+            "styles": [
+              "projects/admin/src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
@@ -131,7 +138,10 @@
               "buildTarget": "admin:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test"
@@ -161,7 +171,9 @@
                 "input": "projects/kiosk/public"
               }
             ],
-            "styles": ["projects/kiosk/src/styles.scss"]
+            "styles": [
+              "projects/kiosk/src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
@@ -197,7 +209,10 @@
               "buildTarget": "kiosk:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test"

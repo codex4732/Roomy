@@ -47,7 +47,29 @@ dotnet run --project src/Roomy.Api
 
 The API listens per `src/Roomy.Api/Properties/launchSettings.json`; Swagger UI is at `/swagger` in Development. Health endpoints: `/healthz` (liveness), `/readyz` (DB reachability).
 
+In Development the API migrates the database and seeds a demo tenant on startup:
+
+| | |
+|---|---|
+| Tenant slug | `demo` |
+| Tenant Admin | `admin@demo.test` / `RoomyDemo123!` |
+| Member | `member@demo.test` / `RoomyDemo123!` |
+
 Tenant resolution (technical design §3): requests to `/api/*` (except `/api/v1/platform/*`) must carry a tenant — subdomain in deployed environments, or the `X-Roomy-Tenant: <slug>` header during local development.
+
+Auth: `POST /api/v1/auth/login` returns a 15-minute JWT (send as `Authorization: Bearer …`) and sets a rotating refresh-token cookie scoped to `/api/v1/auth`. Platform endpoints (`/api/v1/platform/*`) use the interim `X-Platform-Key` header instead — the key is `Platform:ApiKey` in configuration (`dev-platform-key` in Development).
+
+Example — provision a tenant and log in:
+
+```bash
+curl -X POST localhost:5023/api/v1/platform/tenants \
+  -H "Content-Type: application/json" -H "X-Platform-Key: dev-platform-key" \
+  -d '{"name":"Acme","slug":"acme","adminEmail":"admin@acme.test","adminName":"Admin","adminPassword":"ChangeMe-12345"}'
+
+curl -X POST localhost:5023/api/v1/auth/login \
+  -H "Content-Type: application/json" -H "X-Roomy-Tenant: acme" \
+  -d '{"email":"admin@acme.test","password":"ChangeMe-12345"}'
+```
 
 EF Core migrations:
 
@@ -68,6 +90,8 @@ npm start -- member        # or admin / kiosk; ng serve <app> works too
 npm run build:all
 npm run test:ci            # Vitest, headless
 ```
+
+`ng serve` proxies `/api/*` to `http://localhost:5023` (see `frontend/proxy.conf.json`), so run the API alongside it. Sign in on the member app with the seeded credentials above (organization `demo`).
 
 ## CI
 

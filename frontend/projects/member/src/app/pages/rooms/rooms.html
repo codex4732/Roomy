@@ -1,0 +1,77 @@
+<header class="topbar">
+  <h1>Roomy</h1>
+  <div class="user">
+    <span>{{ auth.user()?.name }}</span>
+    <button type="button" (click)="logout()">Sign out</button>
+  </div>
+</header>
+
+<main class="content">
+  <section class="controls">
+    <label>
+      Location
+      <select (change)="onLocationChange($event)">
+        @for (location of locations(); track location.id) {
+          <option [value]="location.id" [selected]="location.id === selectedLocationId()">
+            {{ location.name }}
+          </option>
+        }
+      </select>
+    </label>
+    <p class="meta">
+      {{ today }}
+      @if (selectedLocation(); as location) {
+        · {{ location.timezone }}
+      }
+    </p>
+  </section>
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  } @else if (loading()) {
+    <p class="meta">Loading…</p>
+  } @else if (rooms().length === 0) {
+    <p class="meta">No rooms at this location yet.</p>
+  } @else {
+    <div class="grid-scroll">
+      <table class="availability">
+        <thead>
+          <tr>
+            <th class="room-col">Room</th>
+            @for (slot of slots; track slot.label) {
+              <th class="slot-col" [class.hour-start]="slot.minute === 0">
+                {{ slot.minute === 0 ? slot.label : '' }}
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (room of rooms(); track room.id) {
+            <tr>
+              <td class="room-col">
+                <div class="room-name">{{ room.name }}</div>
+                <div class="room-meta">
+                  {{ room.capacity }} {{ room.capacity === 1 ? 'seat' : 'seats' }}
+                  @if (room.floor) {
+                    · floor {{ room.floor }}
+                  }
+                  @if (room.requiresApproval) {
+                    <span class="badge">approval</span>
+                  }
+                </div>
+              </td>
+              @for (slot of slots; track slot.label) {
+                <td
+                  class="slot free"
+                  [class.hour-start]="slot.minute === 0"
+                  [title]="room.name + ' · ' + slot.label + ' — free (booking arrives in the next release)'"
+                ></td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="legend"><span class="chip free"></span> Free — booking lands in the next release.</p>
+  }
+</main>
