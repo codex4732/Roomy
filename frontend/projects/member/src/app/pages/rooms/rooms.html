@@ -1,133 +1,388 @@
-<header class="topbar">
-  <h1>Roomy</h1>
-  <div class="user">
-    <span>{{ auth.user()?.name }}</span>
-    <button type="button" (click)="logout()">Sign out</button>
-  </div>
-</header>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><span class="mark">◴</span> Roomy</div>
+    <nav>
+      <button type="button" [class.active]="view() === 'grid'" (click)="view.set('grid')">
+        <span class="icon">▦</span> Book a room
+      </button>
+      <button type="button" [class.active]="view() === 'mine'" (click)="view.set('mine')">
+        <span class="icon">★</span> My bookings
+        @if (myUpcoming().length) { <span class="count">{{ myUpcoming().length }}</span> }
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="me">
+        <span class="avatar">{{ auth.user()?.name?.charAt(0) }}</span>
+        <div>
+          <div class="me-name">{{ auth.user()?.name }}</div>
+          <div class="me-role">{{ auth.user()?.role }}</div>
+        </div>
+      </div>
+      <button type="button" class="signout" (click)="logout()">Sign out</button>
+    </div>
+  </aside>
 
-<main class="content">
-  <section class="controls">
-    <label>
-      Location
-      <select (change)="onLocationChange($event)">
+  <main class="main">
+    <header class="head">
+      <div>
+        <h1>{{ greeting() }}</h1>
+        <p class="sub">{{ selectedDateLabel() }}
+          @if (selectedLocation(); as location) { · {{ location.timezone }} }
+        </p>
+      </div>
+      <select class="loc" (change)="onLocationChange($event)">
         @for (location of locations(); track location.id) {
           <option [value]="location.id" [selected]="location.id === selectedLocationId()">
-            {{ location.name }}
+            📍 {{ location.name }}
           </option>
         }
       </select>
-    </label>
-    <p class="meta">
-      {{ today }}
-      @if (selectedLocation(); as location) {
-        · {{ location.timezone }}
+    </header>
+
+    <section class="stats">
+      <div class="stat">
+        <span class="stat-num green">{{ freeNowCount() }}</span>
+        <span class="stat-label">rooms free right now</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num indigo">{{ myUpcoming().length }}</span>
+        <span class="stat-label">upcoming bookings</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num amber">{{ myPendingCount() }}</span>
+        <span class="stat-label">awaiting approval</span>
+      </div>
+    </section>
+
+    @if (notice()) {
+      <p class="notice" role="status">{{ notice() }}</p>
+    }
+    @if (error()) {
+      <p class="errorbox" role="alert">{{ error() }}</p>
+    }
+
+    @if (view() === 'mine') {
+      <section class="mine">
+        @if (myUpcoming().length === 0) {
+          <div class="empty">
+            <p>No upcoming bookings.</p>
+            <button type="button" (click)="view.set('grid')">Find a room</button>
+          </div>
+        }
+        @for (booking of myUpcoming(); track booking.id) {
+          <article class="mine-card" [class.dim]="booking.status === 'Completed'">
+            <div class="tile" [style.background]="tile({ name: booking.roomName })">
+              {{ booking.roomName.charAt(0) }}
+            </div>
+            <div class="mine-info">
+              <h3>{{ booking.title }}</h3>
+              <p>
+                {{ fmtDate(booking.startAt) }} · {{ fmt(booking.startAt) }}–{{ fmt(booking.endAt) }}
+                · {{ booking.roomName }} ({{ booking.locationName }})
+              </p>
+            </div>
+            <span class="status-chip" [attr.data-status]="booking.status">{{ statusLabel(booking.status) }}</span>
+            <div class="mine-actions">
+              @if (canCheckIn(booking)) {
+                <button type="button" (click)="act(booking, 'check-in')" [disabled]="saving()">Check in</button>
+              }
+              @if (booking.status === 'CheckedIn') {
+                <button type="button" (click)="act(booking, 'end')" [disabled]="saving()">End</button>
+              }
+              @if (booking.status === 'Confirmed' || booking.status === 'PendingApproval') {
+                <button type="button" class="ghost" (click)="act(booking, 'cancel')" [disabled]="saving()">Cancel</button>
+              }
+              @if (booking.seriesId) {
+                <button type="button" class="ghost" (click)="act(booking, 'cancel-series')" [disabled]="saving()">Cancel series</button>
+              }
+            </div>
+          </article>
+        }
+      </section>
+    } @else {
+      <section class="toolbar">
+        <div class="date-nav">
+          <button type="button" (click)="shiftDate(-1)" aria-label="Previous day">‹</button>
+          <input type="date" [ngModel]="selectedDate()" (ngModelChange)="setDate($event)" />
+          <button type="button" (click)="shiftDate(1)" aria-label="Next day">›</button>
+          @if (selectedDate() !== todayString()) {
+            <button type="button" class="today" (click)="setDate(todayString())">Today</button>
+          }
+        </div>
+        <div class="mode">
+          <button type="button" [class.on]="gridMode() === 'day'" (click)="gridMode.set('day')">Day</button>
+          <button type="button" [class.on]="gridMode() === 'week'" (click)="gridMode.set('week')">Week</button>
+        </div>
+        <input class="search" type="search" placeholder="Search rooms…"
+          [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        <select [ngModel]="minCapacity()" (ngModelChange)="minCapacity.set(+$event)">
+          @for (c of capacityOptions; track c) {
+            <option [value]="c">{{ c === 0 ? 'Any size' : c + '+ seats' }}</option>
+          }
+        </select>
+      </section>
+
+      @if (loading()) {
+        <p class="sub">Loading…</p>
+      } @else if (filteredRooms().length === 0) {
+        <p class="sub">No rooms match.</p>
+      } @else if (gridMode() === 'week') {
+        <section class="board">
+          <table class="timeline week">
+            <thead>
+              <tr>
+                <th class="room-col"></th>
+                @for (date of weekDates(); track date) {
+                  <th class="day-head" [class.today]="date === todayString()"
+                    (click)="openDay(date)">{{ dayLabel(date) }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (room of filteredRooms(); track room.id) {
+                <tr>
+                  <td class="room-col">
+                    <div class="room-card">
+                      <div class="tile" [style.background]="tile(room)">{{ room.name.charAt(0) }}</div>
+                      <div>
+                        <div class="room-name">{{ room.name }}</div>
+                        <div class="room-meta">⊹ {{ room.capacity }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  @for (date of weekDates(); track date) {
+                    <td class="day-cell" (click)="openDay(date)">
+                      @if (weekCount(room.id, date); as n) {
+                        <span class="day-chip busy-chip">{{ n }} booking{{ n === 1 ? '' : 's' }}</span>
+                      } @else {
+                        <span class="day-chip free-chip">free</span>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+        <p class="legend">Click a day to open it in the day view.</p>
+      } @else {
+        <section class="board">
+          <table class="timeline">
+            <thead>
+              <tr>
+                <th class="room-col"></th>
+                @for (slot of slots; track slot.label) {
+                  <th class="slot-head" [class.hour]="slot.minute === 0" [class.now]="slot.label === nowSlotLabel()">
+                    @if (slot.minute === 0) { {{ slot.label }} }
+                    @if (slot.label === nowSlotLabel()) { <span class="now-dot"></span> }
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (room of filteredRooms(); track room.id) {
+                <tr>
+                  <td class="room-col">
+                    <div class="room-card">
+                      <div class="tile" [style.background]="tile(room)">{{ room.name.charAt(0) }}</div>
+                      <div>
+                        <div class="room-name">{{ room.name }}</div>
+                        <div class="room-meta">
+                          ⊹ {{ room.capacity }}
+                          @if (room.floor) { · fl {{ room.floor }} }
+                          @if (room.requiresApproval) { <span class="badge">approval</span> }
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  @for (cell of cellsFor(room); track cell.slot.label) {
+                    @if (cell.kind === 'free') {
+                      <td class="cell free" [class.hour]="cell.slot.minute === 0"
+                        (click)="openDraft(room, cell.slot)">
+                        <span class="plus">+</span>
+                      </td>
+                    } @else if (cell.kind === 'blackout') {
+                      <td class="cell" [attr.colspan]="cell.span">
+                        <div class="block closed" [title]="'Blocked: ' + cell.reason">
+                          <span class="block-title">{{ cell.reason }}</span>
+                        </div>
+                      </td>
+                    } @else {
+                      <td class="cell" [attr.colspan]="cell.span">
+                        <button type="button" class="block"
+                          [class.mine]="cell.booking.isMine"
+                          [class.others]="!cell.booking.isMine"
+                          [class.pending]="cell.booking.status === 'PendingApproval'"
+                          [class.live]="cell.booking.status === 'CheckedIn'"
+                          [title]="cell.booking.title + ' — ' + cell.booking.organizerName + ' (' + statusLabel(cell.booking.status) + ')'"
+                          (click)="openBooking(cell.booking)">
+                          <span class="block-title">{{ cell.booking.isMine ? cell.booking.title : cell.booking.organizerName }}</span>
+                          @if (cell.span > 2) {
+                            <span class="block-time">{{ fmt(cell.booking.startAt) }}–{{ fmt(cell.booking.endAt) }}</span>
+                          }
+                        </button>
+                      </td>
+                    }
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+        <p class="legend">
+          <span class="chip k-free"></span> Free
+          <span class="chip k-others"></span> Booked
+          <span class="chip k-mine"></span> Yours
+          <span class="chip k-pending"></span> Tentative
+          <span class="chip k-live"></span> In progress
+          <span class="chip k-closed"></span> Blocked
+        </p>
       }
-    </p>
-  </section>
+    }
+  </main>
+</div>
 
-  @if (notice()) {
-    <p class="notice" role="status">{{ notice() }}</p>
-  }
-
-  @if (draft(); as d) {
-    <section class="book-panel">
-      <h2>Book {{ d.room.name }} · {{ d.slot.label }}</h2>
+@if (draft(); as d) {
+  <div class="overlay" (click)="closePanels()">
+    <section class="modal" (click)="$event.stopPropagation()">
+      <header class="modal-head">
+        <div class="tile" [style.background]="tile(d.room)">{{ d.room.name.charAt(0) }}</div>
+        <div>
+          <h2>{{ d.room.name }}</h2>
+          <p class="sub">{{ d.room.capacity }} seats · {{ selectedDateLabel() }}</p>
+        </div>
+      </header>
       <form (ngSubmit)="submitDraft()">
         <label>
           Title
-          <input
-            name="title"
-            [ngModel]="d.title"
-            (ngModelChange)="draft.set({ ...d, title: $event })"
-            required
-            maxlength="200"
-            placeholder="What's the meeting?"
-          />
+          <input name="title" [ngModel]="d.title" (ngModelChange)="draft.set({ ...d, title: $event })"
+            required maxlength="200" placeholder="What's the meeting?" autofocus />
         </label>
-        <label>
-          Duration
-          <select
-            name="duration"
-            [ngModel]="d.durationMinutes"
-            (ngModelChange)="draft.set({ ...d, durationMinutes: +$event })"
-          >
-            @for (minutes of durations; track minutes) {
-              <option [value]="minutes">{{ minutes }} min</option>
-            }
-          </select>
-        </label>
-        <div class="actions">
-          <button type="submit" [disabled]="saving() || !d.title.trim()">
-            {{ saving() ? 'Booking…' : 'Book' }}
-          </button>
-          <button type="button" class="secondary" (click)="closeDraft()">Cancel</button>
+        <div class="row">
+          <label>
+            Starts
+            <select name="startTime" [ngModel]="d.startTime"
+              (ngModelChange)="draft.set({ ...d, startTime: $event })">
+              @for (t of timeOptions; track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            Ends
+            <select name="endTime" [ngModel]="d.endTime"
+              (ngModelChange)="draft.set({ ...d, endTime: $event })">
+              @for (t of timeOptions; track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            End date
+            <input name="endDate" type="date" [ngModel]="d.endDate"
+              (ngModelChange)="draft.set({ ...d, endDate: $event })" />
+          </label>
         </div>
+        <div class="row">
+          <label>
+            Repeat
+            <select name="repeat" [ngModel]="d.repeat"
+              (ngModelChange)="draft.set({ ...d, repeat: $event, conflictCount: 0 })">
+              <option value="none">Just once</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </label>
+          @if (d.repeat !== 'none') {
+            <label>
+              Times
+              <input name="count" type="number" min="2" max="26" [ngModel]="d.count"
+                (ngModelChange)="draft.set({ ...d, count: +$event })" />
+            </label>
+          }
+        </div>
+        <button type="button" class="link" (click)="draft.set({ ...d, advanced: !d.advanced })">
+          {{ d.advanced ? '▾ Hide advanced setup' : '▸ Advanced setup — participants & room preparation' }}
+        </button>
+        @if (d.advanced) {
+          <label>
+            Participants <span class="opt">(comma-separated names or emails)</span>
+            <input name="participants" [ngModel]="d.participantsText"
+              (ngModelChange)="draft.set({ ...d, participantsText: $event })"
+              placeholder="ana@acme.test, Ben, carol@acme.test" />
+          </label>
+          <label>
+            Room setup request <span class="opt">(for facility staff)</span>
+            <textarea name="setupNotes" rows="2" maxlength="1000" [ngModel]="d.setupNotes"
+              (ngModelChange)="draft.set({ ...d, setupNotes: $event })"
+              placeholder="e.g. U-shape seating for 10, projector, 2 flip charts, coffee at start"></textarea>
+          </label>
+        }
+        @if (d.room.requiresApproval) {
+          <p class="hint">Needs Facility Manager approval — held as tentative until decided.</p>
+        }
+        <footer class="modal-actions">
+          @if (d.conflictCount > 0) {
+            <button type="button" class="warn" [disabled]="saving()" (click)="submitDraft(true)">
+              {{ d.conflictCount }} conflict(s) — book the rest
+            </button>
+          } @else {
+            <button type="submit" [disabled]="saving() || !d.title.trim()">
+              {{ saving() ? 'Booking…' : d.room.requiresApproval ? 'Request booking' : 'Book it' }}
+            </button>
+          }
+          <button type="button" class="ghost" (click)="closePanels()">Cancel</button>
+        </footer>
       </form>
     </section>
-  }
+  </div>
+}
 
-  @if (error()) {
-    <p class="error" role="alert">{{ error() }}</p>
-  } @else if (loading()) {
-    <p class="meta">Loading…</p>
-  } @else if (rooms().length === 0) {
-    <p class="meta">No rooms at this location yet.</p>
-  } @else {
-    <div class="grid-scroll">
-      <table class="availability">
-        <thead>
-          <tr>
-            <th class="room-col">Room</th>
-            @for (slot of slots; track slot.label) {
-              <th class="slot-col" [class.hour-start]="slot.minute === 0">
-                {{ slot.minute === 0 ? slot.label : '' }}
-              </th>
-            }
-          </tr>
-        </thead>
-        <tbody>
-          @for (room of rooms(); track room.id) {
-            <tr>
-              <td class="room-col">
-                <div class="room-name">{{ room.name }}</div>
-                <div class="room-meta">
-                  {{ room.capacity }} {{ room.capacity === 1 ? 'seat' : 'seats' }}
-                  @if (room.floor) {
-                    · floor {{ room.floor }}
-                  }
-                  @if (room.requiresApproval) {
-                    <span class="badge">approval</span>
-                  }
-                </div>
-              </td>
-              @for (slot of slots; track slot.label) {
-                @if (bookingAt(room.id, slot); as booking) {
-                  <td
-                    class="slot busy"
-                    [class.mine]="booking.isMine"
-                    [class.hour-start]="slot.minute === 0"
-                    [title]="booking.title + ' — ' + booking.organizerName + (booking.isMine ? ' (click to cancel)' : '')"
-                    (click)="cancelBooking(booking)"
-                  ></td>
-                } @else {
-                  <td
-                    class="slot free"
-                    [class.hour-start]="slot.minute === 0"
-                    [title]="room.name + ' · ' + slot.label + ' — book this slot'"
-                    (click)="openDraft(room, slot)"
-                  ></td>
-                }
-              }
-            </tr>
+@if (selected(); as booking) {
+  <div class="overlay" (click)="closePanels()">
+    <section class="modal" (click)="$event.stopPropagation()">
+      <header class="modal-head">
+        <div class="tile" [style.background]="tile({ name: roomName(booking.roomId) })">
+          {{ roomName(booking.roomId).charAt(0) }}
+        </div>
+        <div>
+          <h2>{{ booking.title }}</h2>
+          <p class="sub">
+            {{ roomName(booking.roomId) }} · {{ fmtDate(booking.startAt) }}
+            {{ fmt(booking.startAt) }}–{{ fmt(booking.endAt) }}
+            @if (booking.seriesId) { · series }
+          </p>
+        </div>
+        <span class="status-chip" [attr.data-status]="booking.status">{{ statusLabel(booking.status) }}</span>
+      </header>
+      @if (booking.participants.length) {
+        <div class="people">
+          @for (person of booking.participants; track person) {
+            <span class="person">{{ person }}</span>
           }
-        </tbody>
-      </table>
-    </div>
-    <p class="legend">
-      <span class="chip free"></span> Free
-      <span class="chip busy"></span> Booked
-      <span class="chip mine"></span> Yours (click to cancel)
-    </p>
-  }
-</main>
+        </div>
+      }
+      @if (booking.setupNotes) {
+        <p class="setup"><strong>Setup:</strong> {{ booking.setupNotes }}</p>
+      }
+      @if (booking.status === 'Confirmed' && booking.checkinRequired && !canCheckIn(booking)) {
+        <p class="hint">Check-in opens 10 minutes before start; no-shows release after {{ graceMinutes() }} minutes.</p>
+      }
+      <footer class="modal-actions">
+        @if (canCheckIn(booking)) {
+          <button type="button" [disabled]="saving()" (click)="act(booking, 'check-in')">Check in</button>
+        }
+        @if (booking.status === 'CheckedIn') {
+          <button type="button" [disabled]="saving()" (click)="act(booking, 'end')">End meeting</button>
+        }
+        @if (booking.status === 'Confirmed' || booking.status === 'PendingApproval') {
+          <button type="button" class="warn" [disabled]="saving()" (click)="act(booking, 'cancel')">Cancel booking</button>
+        }
+        @if (booking.seriesId) {
+          <button type="button" class="warn" [disabled]="saving()" (click)="act(booking, 'cancel-series')">Cancel series</button>
+        }
+        <button type="button" class="ghost" (click)="closePanels()">Close</button>
+      </footer>
+    </section>
+  </div>
+}

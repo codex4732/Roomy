@@ -28,6 +28,10 @@ export interface BookingDto {
   status: string;
   organizerName: string;
   isMine: boolean;
+  seriesId: string | null;
+  checkinRequired: boolean;
+  setupNotes: string | null;
+  participants: string[];
 }
 
 export interface CreateBookingRequest {
@@ -36,6 +40,8 @@ export interface CreateBookingRequest {
   startAt: string;
   endAt: string;
   attendeeCount?: number;
+  setupNotes?: string | null;
+  participants?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

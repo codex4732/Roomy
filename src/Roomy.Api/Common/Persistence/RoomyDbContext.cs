@@ -18,6 +18,8 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Bookings.Booking> Bookings => Set<Bookings.Booking>();
+    public DbSet<Bookings.BookingSeries> BookingSeries => Set<Bookings.BookingSeries>();
+    public DbSet<Blackouts.BlackoutPeriod> Blackouts => Set<Blackouts.BlackoutPeriod>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +29,13 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
             tenant.HasIndex(t => t.Slug).IsUnique();
             tenant.Property(t => t.Slug).HasMaxLength(40);
             tenant.Property(t => t.Name).HasMaxLength(200);
+            tenant.OwnsOne(t => t.Settings, s => s.ToJson());
+        });
+
+        modelBuilder.Entity<Bookings.BookingSeries>(series =>
+        {
+            series.HasIndex(s => new { s.TenantId, s.OrganizerId });
+            series.Property(s => s.Title).HasMaxLength(200);
         });
 
         modelBuilder.Entity<User>(user =>
@@ -57,8 +66,15 @@ public sealed class RoomyDbContext(DbContextOptions<RoomyDbContext> options, ITe
             booking.HasIndex(b => new { b.TenantId, b.OrganizerId, b.StartAt });
             booking.Property(b => b.Title).HasMaxLength(200);
             booking.Property(b => b.CancelReason).HasMaxLength(500);
+            booking.Property(b => b.SetupNotes).HasMaxLength(1000);
             booking.HasOne(b => b.Room).WithMany().HasForeignKey(b => b.RoomId);
             booking.HasOne(b => b.Organizer).WithMany().HasForeignKey(b => b.OrganizerId);
+        });
+
+        modelBuilder.Entity<Blackouts.BlackoutPeriod>(blackout =>
+        {
+            blackout.HasIndex(b => new { b.TenantId, b.LocationId, b.StartAt });
+            blackout.Property(b => b.Reason).HasMaxLength(300);
         });
 
         modelBuilder.Entity<Room>(room =>

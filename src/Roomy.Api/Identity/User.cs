@@ -20,6 +20,9 @@ public sealed class User : ITenantOwned
 
     public string? PasswordHash { get; set; }
 
+    /// <summary>Auto-release strikes (FR-6.5); reporting only in v1.</summary>
+    public int NoShowCount { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 

@@ -53,7 +53,10 @@ In Development the API migrates the database and seeds a demo tenant on startup:
 |---|---|
 | Tenant slug | `demo` |
 | Tenant Admin | `admin@demo.test` / `RoomyDemo123!` |
+| Facility Manager | `facility@demo.test` / `RoomyDemo123!` |
 | Member | `member@demo.test` / `RoomyDemo123!` |
+
+The three Angular apps: **member** (book/check-in from the availability grid), **admin** (approvals, locations & rooms, users — sign in as the admin or facility manager), **kiosk** (room door status board — sign in, pick a room). Booking policies (window/duration/quota/grace) live in `tenants.settings`; a Quartz job auto-releases no-shows, expires stale approval requests, and completes finished meetings every minute.
 
 Tenant resolution (technical design §3): requests to `/api/*` (except `/api/v1/platform/*`) must carry a tenant — subdomain in deployed environments, or the `X-Roomy-Tenant: <slug>` header during local development.
 

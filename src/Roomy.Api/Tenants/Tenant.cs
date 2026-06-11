@@ -10,6 +10,8 @@ public sealed class Tenant
 
     public TenantStatus Status { get; set; } = TenantStatus.Active;
 
+    public TenantSettings Settings { get; set; } = new();
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
